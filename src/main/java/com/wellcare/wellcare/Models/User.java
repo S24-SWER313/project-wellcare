@@ -5,16 +5,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -54,14 +51,8 @@ public class User {
     @ManyToMany(mappedBy = "follower")
     private Set<User> following = new HashSet<>();
 
-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    private List<Story> stories = new ArrayList<>();
-
     @ManyToMany
     private List<Post> savedPost = new ArrayList<>();
-
-    @ManyToMany
-    private List<Post> sharedPost = new ArrayList<>();
 
     public User() {
     }
@@ -79,9 +70,9 @@ public class User {
     @Override
     public String toString() {
         return "User [id=" + id + ", username=" + username + ", firstName=" + firstName + ", lastName=" + lastName
-                + ", password=" + password + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
-                + gender + ", image=" + image + ", follower=" + follower + ", following=" + following + ", stories="
-                + stories + ", savedPost=" + savedPost + ", sharedPost=" + sharedPost + "]";
+                + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
+                + gender + ", image=" + image + ", follower=" + follower + ", following=" + following + ", savedPost="
+                + savedPost + "]";
     }
 
 }
