@@ -13,14 +13,20 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import lombok.Data;
 
     
 enum Gender{
     FEMALE,
     MALE,
 }
+enum Role{
+    DOCTOR,
+    PATIENT,
+}
 
 @Entity
+@Data
 @Table(name = "user")
 public class User {
 
@@ -36,6 +42,8 @@ public class User {
     private String bio;
     private Gender gender;
     private String image;
+    private Role role;
+
 
 
     @ManyToMany
@@ -80,125 +88,6 @@ public class User {
         this.sharedPost = sharedPost;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getMobile() {
-        return mobile;
-    }
-
-    public void setMobile(String mobile) {
-        this.mobile = mobile;
-    }
-
-    public String getBio() {
-        return bio;
-    }
-
-    public void setBio(String bio) {
-        this.bio = bio;
-    }
-
-    public Gender getGender() {
-        return gender;
-    }
-
-    public void setGender(Gender gender) {
-        this.gender = gender;
-    }
-
-    public String getImage() {
-        return image;
-    }
-
-    public void setImage(String image) {
-        this.image = image;
-    }
-
-    public Set<User> getFollower() {
-        return follower;
-    }
-
-    public void setFollower(Set<User> follower) {
-        this.follower = follower;
-    }
-
-    public Set<User> getFollowing() {
-        return following;
-    }
-
-    public void setFollowing(Set<User> following) {
-        this.following = following;
-    }
-
-    public List<Story> getStories() {
-        return stories;
-    }
-
-    public void setStories(List<Story> stories) {
-        this.stories = stories;
-    }
-
-    public List<Post> getSavedPost() {
-        return savedPost;
-    }
-
-    public void setSavedPost(List<Post> savedPost) {
-        this.savedPost = savedPost;
-    }
-
-    public List<Post> getSharedPost() {
-        return sharedPost;
-    }
-
-    public void setSharedPost(List<Post> sharedPost) {
-        this.sharedPost = sharedPost;
-    }
 
     @Override
     public String toString() {
