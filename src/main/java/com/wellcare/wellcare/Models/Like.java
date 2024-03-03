@@ -14,21 +14,19 @@ import lombok.Data;
 public class Like {
     private @Id @GeneratedValue Long id;
 
-    
     @ManyToOne
     @JoinColumn(name = "user_id")
-    private User user;
+    private User author;
 
     @ManyToOne
     @JoinColumn(name = "post_id")
     private Post post;
-    
+
     public Like() {
     }
 
-    public Like(Post post, User user) {
+    public Like(Post post, User author) {
         this.post = post;
-        this.user = user;
+        this.author = author;
     }
 }
-
