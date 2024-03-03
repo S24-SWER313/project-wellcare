@@ -10,7 +10,7 @@ import lombok.Data;
 
 @Entity
 @Data
-@Table(name = "like")
+@Table(name = "likes")
 public class Like {
     private @Id @GeneratedValue Long id;
 

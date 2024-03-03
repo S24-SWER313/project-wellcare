@@ -1,17 +1,16 @@
 package com.wellcare.wellcare.Models;
 
 import java.time.LocalDateTime;
-import java.util.List;
-
+import java.util.*;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -27,28 +26,41 @@ public class Post {
         PHOTO, TEXT, VIDEO
     }
     
-    private @Id @GeneratedValue Long id;
+    private @Id @GeneratedValue
+    Long id;
 
-    private String content; 
+
     private LocalDateTime createdAt;
+
     @Nullable
     private String location;
-    @Nullable
+
     private String caption;
+
+    private String content;
+
+    private String url;
+
     @Enumerated(EnumType.STRING) 
     private PostType type; 
-    @Nullable
-    private String url; 
+
 
     @ManyToOne
     @JoinColumn(name = "author_id") 
     private User author;
 
-    @ManyToMany(mappedBy = "likedPosts")
-    private List<User> likedBy;
+    @ManyToMany
+    @JoinTable(
+    name = "post_likes",
+    joinColumns = @JoinColumn(name = "post_id"),
+    inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> likedBy = new HashSet<>();
+
+    
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
-    private List<Comment> comments;
+    private List<Comment> comments = new ArrayList<>();
 
     public Post() {
         this.createdAt = LocalDateTime.now();
@@ -68,6 +80,20 @@ public class Post {
         this.type = type;
         this.url = url;
     }
+
+    public Post(Long id, LocalDateTime createdAt, String location, String caption, PostType type, User author,
+            Set<User> likedBy, List<Comment> comments) {
+        this.id = id;
+        this.createdAt = createdAt;
+        this.location = location;
+        this.caption = caption;
+        this.type = type;
+        this.author = author;
+        this.likedBy = likedBy;
+        this.comments = comments;
+    }
+
+   
 
 
 

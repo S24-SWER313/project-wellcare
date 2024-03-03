@@ -30,6 +30,8 @@ public class Comment {
 
     private String content;
 
+   
+
     @ManyToMany(cascade = CascadeType.ALL)
     @JoinTable(
             name = "comment_likes",
@@ -42,6 +44,9 @@ public class Comment {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @ManyToOne
+    @JoinColumn(name = "post_id")
+    private Post post;
     
     public Comment(){}
 
