@@ -1,6 +1,9 @@
 package com.wellcare.wellcare.Models;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -15,12 +18,12 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Data;
 
-    
-enum Gender{
+enum Gender {
     FEMALE,
     MALE,
 }
-enum Role{
+
+enum Role {
     DOCTOR,
     PATIENT,
 }
@@ -44,14 +47,8 @@ public class User {
     private String image;
     private Role role;
 
-
-
     @ManyToMany
-    @JoinTable(
-        name = "user_followers",
-        joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "follower_id")
-    )
+    @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
     private Set<User> follower = new HashSet<>();
 
     @ManyToMany(mappedBy = "follower")
@@ -66,28 +63,18 @@ public class User {
     @ManyToMany
     private List<Post> sharedPost = new ArrayList<>();
 
-    public User(){}
-    
-    public User(Long id, String username, String firstName, String lastName, String password, String email,
-            String mobile, String bio, Gender gender, String image, Set<User> follower, Set<User> following,
-            List<Story> stories, List<Post> savedPost, List<Post> sharedPost) {
+    public User() {
+    }
+
+    public User(Long id, String username, String firstName, String lastName, String password, String email, Role role) {
         this.id = id;
         this.username = username;
         this.firstName = firstName;
         this.lastName = lastName;
         this.password = password;
         this.email = email;
-        this.mobile = mobile;
-        this.bio = bio;
-        this.gender = gender;
-        this.image = image;
-        this.follower = follower;
-        this.following = following;
-        this.stories = stories;
-        this.savedPost = savedPost;
-        this.sharedPost = sharedPost;
+        this.role = role;
     }
-
 
     @Override
     public String toString() {
@@ -97,5 +84,4 @@ public class User {
                 + stories + ", savedPost=" + savedPost + ", sharedPost=" + sharedPost + "]";
     }
 
-    
 }
