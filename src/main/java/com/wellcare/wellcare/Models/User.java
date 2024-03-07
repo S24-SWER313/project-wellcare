@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Set;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -20,10 +23,6 @@ enum Gender {
     MALE,
 }
 
-enum Role {
-    DOCTOR,
-    PATIENT,
-}
 
 @Entity
 @Data
@@ -42,6 +41,8 @@ public class User {
     private String bio;
     private Gender gender;
     private String image;
+
+    @ManyToMany
     private Role role;
 
     @ManyToMany
@@ -53,6 +54,12 @@ public class User {
 
     @ManyToMany
     private List<Post> savedPost = new ArrayList<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(  name = "user_roles", 
+        joinColumns = @JoinColumn(name = "user_id"), 
+        inverseJoinColumns = @JoinColumn(name = "role_id"))
+    private Set<Role> roles = new HashSet<>();
 
     public User() {
     }
