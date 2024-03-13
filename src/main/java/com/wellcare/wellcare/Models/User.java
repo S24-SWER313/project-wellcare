@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Set;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -42,9 +40,7 @@ public class User {
     private Gender gender;
     private String image;
 
-    @ManyToMany
-    private Role role;
-
+ 
     @ManyToMany
     @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
     private Set<User> follower = new HashSet<>();
@@ -64,14 +60,14 @@ public class User {
     public User() {
     }
 
-    public User(Long id, String username, String firstName, String lastName, String password, String email, Role role) {
+    public User(Long id, String username, String firstName, String lastName, String password, String email, Set<Role> roles) {
         this.id = id;
         this.username = username;
         this.firstName = firstName;
         this.lastName = lastName;
         this.password = password;
         this.email = email;
-        this.role = role;
+        this.roles = roles;
     }
 
     @Override
