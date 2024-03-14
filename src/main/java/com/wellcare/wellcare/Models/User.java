@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -18,11 +19,6 @@ import lombok.Data;
 enum Gender {
     FEMALE,
     MALE,
-}
-
-enum Role {
-    DOCTOR,
-    PATIENT,
 }
 
 @Entity
@@ -44,17 +40,23 @@ public class User {
     private String image;
     private Role role;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
     private Set<User> follower = new HashSet<>();
 
-    @ManyToMany(mappedBy = "follower")
+    @ManyToMany(fetch = FetchType.EAGER, mappedBy = "follower")
     private Set<User> following = new HashSet<>();
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     private List<Post> savedPost = new ArrayList<>();
 
     public User() {
+    }
+
+    public User(String username, String email, String password) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
     }
 
     public User(Long id, String username, String firstName, String lastName, String password, String email, Role role) {
