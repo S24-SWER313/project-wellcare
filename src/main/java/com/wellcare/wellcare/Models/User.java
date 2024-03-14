@@ -21,7 +21,6 @@ enum Gender {
     MALE,
 }
 
-
 @Entity
 @Data
 @Table(name = "user")
@@ -40,27 +39,30 @@ public class User {
     private Gender gender;
     private String image;
 
- 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
     private Set<User> follower = new HashSet<>();
 
-    @ManyToMany(mappedBy = "follower")
+    @ManyToMany(fetch = FetchType.EAGER, mappedBy = "follower")
     private Set<User> following = new HashSet<>();
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     private List<Post> savedPost = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(  name = "user_roles", 
-        joinColumns = @JoinColumn(name = "user_id"), 
-        inverseJoinColumns = @JoinColumn(name = "role_id"))
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles = new HashSet<>();
 
     public User() {
     }
 
-    public User(Long id, String username, String firstName, String lastName, String password, String email, Set<Role> roles) {
+    public User(String username, String email, String password) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+    }
+
+    public User(Long id, String username, String firstName, String lastName, String password, String email, Role role) {
         this.id = id;
         this.username = username;
         this.firstName = firstName;
