@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.wellcare.wellcare.Models.Role;
+import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
@@ -62,11 +62,11 @@ public class AuthController {
         user.setLastName(signUpRequest.getLastName());
         // Set other fields as needed
 
-        Set<Role> roles = new HashSet<>();
+        Set<ERole> roles = new HashSet<>();
         if (signUpRequest.getRole() != null && signUpRequest.getRole().equals("DOCTOR")) {
-            roles.add(Role.DOCTOR);
+            roles.add(ERole.DOCTOR);
         } else {
-            roles.add(Role.PATIENT);
+            roles.add(ERole.PATIENT);
         }
         user.setRole(roles.iterator().next()); // Assuming a user can have only one role
 

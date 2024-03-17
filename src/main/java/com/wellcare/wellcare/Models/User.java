@@ -62,14 +62,21 @@ public class User {
         this.password = password;
     }
 
-    public User(Long id, String username, String firstName, String lastName, String password, String email, Role role) {
+    public User(Long id, String username, String firstName, String lastName, String password, String email) {
         this.id = id;
         this.username = username;
         this.firstName = firstName;
         this.lastName = lastName;
         this.password = password;
         this.email = email;
-        this.roles = roles;
+    }
+
+    public void setRole(ERole role) {
+        this.roles.add(new Role(role));
+    }
+
+    public ERole getRole() {
+        return roles.iterator().next().getName();
     }
 
     @Override
