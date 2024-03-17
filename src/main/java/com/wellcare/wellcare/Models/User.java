@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -38,7 +39,9 @@ public class User {
     private String bio;
     private Gender gender;
     private String image;
-
+    @ManyToOne
+    @JoinColumn(name = "role_id")
+    private Role role;
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
     private Set<User> follower = new HashSet<>();
@@ -49,10 +52,6 @@ public class User {
     @ManyToMany(fetch = FetchType.EAGER)
     private List<Post> savedPost = new ArrayList<>();
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles = new HashSet<>();
-
     public User() {
     }
 
@@ -62,21 +61,14 @@ public class User {
         this.password = password;
     }
 
-    public User(Long id, String username, String firstName, String lastName, String password, String email) {
+    public User(Long id, String username, String firstName, String lastName, String password, String email, Role role) {
         this.id = id;
         this.username = username;
         this.firstName = firstName;
         this.lastName = lastName;
         this.password = password;
         this.email = email;
-    }
-
-    public void setRole(ERole role) {
-        this.roles.add(new Role(role));
-    }
-
-    public ERole getRole() {
-        return roles.iterator().next().getName();
+        this.role = role;
     }
 
     @Override

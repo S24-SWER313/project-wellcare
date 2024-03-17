@@ -19,16 +19,15 @@ public class Role {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  // Adjust the type of 'name' to match the enum type 'ERole'
   @Enumerated(EnumType.STRING)
   @Column(length = 20)
   private ERole name;
 
   public Role() {
-
   }
 
   public Role(ERole name) {
     this.name = name;
   }
-
 }

@@ -8,6 +8,6 @@ import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Role;
 
 public interface RoleRepository extends JpaRepository<Role, Long> {
-    
+
     Optional<Role> findByName(ERole name);
 }

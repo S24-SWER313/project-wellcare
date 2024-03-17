@@ -1,15 +1,12 @@
 package com.wellcare.wellcare.Controllers;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication; // Correct import
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,7 +15,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wellcare.wellcare.Models.ERole;
+import com.wellcare.wellcare.Models.Role;
 import com.wellcare.wellcare.Models.User;
+import com.wellcare.wellcare.Repositories.RoleRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
@@ -45,6 +44,9 @@ public class AuthController {
     @Autowired
     JwtUtils jwtUtils;
 
+    @Autowired
+    RoleRepository roleRepository;
+
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
@@ -60,15 +62,17 @@ public class AuthController {
                 encoder.encode(signUpRequest.getPassword()));
         user.setFirstName(signUpRequest.getFirstName());
         user.setLastName(signUpRequest.getLastName());
-        // Set other fields as needed
 
-        Set<ERole> roles = new HashSet<>();
+        Role userRole;
         if (signUpRequest.getRole() != null && signUpRequest.getRole().equals("DOCTOR")) {
-            roles.add(ERole.DOCTOR);
+            userRole = new Role(ERole.DOCTOR);
         } else {
-            roles.add(ERole.PATIENT);
+            userRole = new Role(ERole.PATIENT);
         }
-        user.setRole(roles.iterator().next()); // Assuming a user can have only one role
+
+        // Save the Role object before setting it to the User
+        Role savedRole = roleRepository.save(userRole);
+        user.setRole(savedRole);
 
         userRepository.save(user);
 
@@ -86,14 +90,12 @@ public class AuthController {
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        // Obtain the authentication object from userDetails
         Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
-        // Pass auth to generateJwtToken
         String jwt = jwtUtils.generateJwtToken(auth);
 
-        List<String> roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
-                .collect(Collectors.toList());
+        String roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
+                .collect(Collectors.joining(","));
 
         return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(),
                 userDetails.getUsername(), userDetails.getEmail(), roles));
