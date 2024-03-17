@@ -18,7 +18,7 @@ import lombok.Data;
 enum Gender {
     FEMALE,
     MALE,
-}
+} 
 
 enum Role {
     DOCTOR,
@@ -53,6 +53,7 @@ public class User {
 
     @ManyToMany
     private List<Post> savedPost = new ArrayList<>();
+    
 
     public User() {
     }

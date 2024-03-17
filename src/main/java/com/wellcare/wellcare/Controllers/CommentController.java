@@ -3,12 +3,17 @@ package com.wellcare.wellcare.Controllers;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 import java.util.Optional;
+
+import org.apache.coyote.BadRequestException;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wellcare.wellcare.Exceptions.CommentException;
@@ -19,82 +24,52 @@ import com.wellcare.wellcare.Models.Post;
 import com.wellcare.wellcare.Repositories.CommentRepository;
 import com.wellcare.wellcare.Repositories.PostRepository;
 
-import io.micrometer.common.util.StringUtils;
 
 @RestController
+@RequestMapping("/api/comments")
 public class CommentController {
 
-    private final CommentRepository comRepo;
-    private final PostRepository postRepo;
+    private  CommentRepository comRepo;
+    private  PostRepository  postRepository;
+    private  CommentModelAssembler commentModelAssembler;
 
-    public CommentController(PostRepository postRepo, CommentRepository comRepo) {
-        this.postRepo = postRepo;
+
+    public CommentController(CommentRepository comRepo , CommentModelAssembler commentModelAssembler ,  PostRepository  postRepository) {
         this.comRepo = comRepo;
+        this.commentModelAssembler = commentModelAssembler;
+        this.postRepository = postRepository;
     }
     //to update a comment 
-    @PutMapping("/posts/{postId}/comments/{commentId}")
-    public ResponseEntity<?> updateComment(@PathVariable Long postId, @PathVariable Long commentId, @RequestBody Comment updatedComment)throws CommentException , PostException {
-        Optional<Post> optionalPost = postRepo.findById(postId);
-        if (optionalPost.isEmpty()) {
-        throw new ResourceNotFoundException("Post", postId); 
-        }
-        Post post = optionalPost.get();
-        Optional<Comment> optionalComment = post.getComments().stream()
-            .filter(comment -> comment.getId().equals(commentId))
-            .findFirst();
+   @PutMapping("/{commentId}")
+    public ResponseEntity<EntityModel<Comment>> updateComment(@PathVariable Long commentId, @RequestBody Comment updatedComment) throws BadRequestException {
+            Optional<Comment> optionalComment = comRepo.findById(commentId);
         if (optionalComment.isEmpty()) {
-            throw new ResourceNotFoundException("Comment", commentId); 
-        }
-        Comment comment = optionalComment.get();
-        // to ensure that the content is not empty 
-        if (StringUtils.isBlank(updatedComment.getContent()) && updatedComment.getAttachment() == null) {
-            throw new IllegalArgumentException("Comment must have either content or attachment");
-        }
-        comment.setContent(updatedComment.getContent());
-        comment.setAttachment(updatedComment.getAttachment());
-        postRepo.save(post);
-        EntityModel<Comment> commentModel = EntityModel.of(comment);
-        commentModel.add(
-            linkTo(methodOn(CommentController.class).updateComment(postId, commentId, updatedComment)).withSelfRel(),
-            //   /posts
-            linkTo(methodOn(PostController.class).all()).slash("posts").withRel("posts"),
-            //   /posts/{postId}
-            linkTo(methodOn(PostController.class).getPostById(postId)).withRel("post"),
-            //   /posts/{postId}/comments
-            linkTo(methodOn(CommentController.class).getAllCommentsForPost(postId)).withRel("comments")  );
+            throw new ResourceNotFoundException("Comment", commentId);
+}
+
+        Comment existingComment = optionalComment.get();
+        
     
-        return ResponseEntity.ok(commentModel);
-    }
-    
-   
+        existingComment.setContent(updatedComment.getContent());
+        existingComment.setAttachment(updatedComment.getAttachment());
+            comRepo.save(existingComment);
+            return ResponseEntity.ok(commentModelAssembler.toModel(existingComment));
+        } 
+
+
     // to delete a comment
-    @DeleteMapping("/posts/{postId}/comments/{commentId}")
-    public ResponseEntity<?> deleteComment(@PathVariable Long postId, @PathVariable Long commentId) throws CommentException , PostException {
-    Optional<Post> optionalPost = postRepo.findById(postId);
-    if (optionalPost.isEmpty()) {
-        throw new ResourceNotFoundException("Post", postId); 
-    }
-    Post post = optionalPost.get();
-    Optional<Comment> optionalComment = post.getComments().stream()
-        .filter(comment -> comment.getId().equals(commentId))
-        .findFirst();
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<?> deleteComment(@PathVariable Long postId, @PathVariable Long commentId) {  
 
-    if (optionalComment.isEmpty()) {
-        throw new ResourceNotFoundException("Comment", commentId); 
+        Optional<Comment> optionalComment = comRepo.findById(commentId);
+            if (optionalComment.isEmpty()) {
+                throw new ResourceNotFoundException("Comment", commentId);
+            }
+            Comment comment = optionalComment.get();
+            comRepo.delete(comment);
+            return ResponseEntity.noContent().build(); 
     }
-    Comment comment = optionalComment.get();
-    post.getComments().remove(comment); 
-    comRepo.delete(comment);// delete the comment from the DB
-    EntityModel<Comment> commentModel = EntityModel.of(comment);
-    commentModel.add(
-        linkTo(methodOn(CommentController.class).deleteComment(postId, commentId)).withSelfRel(),
-        //   /posts
-        linkTo(methodOn(CommentController.class).getAllPosts()).slash("posts").withRel("posts"),
-        //   /posts/{postId}
-        linkTo(methodOn(CommentController.class).getPostById(postId)).withRel("post"),
-        //   /posts/{postId}/comments
-        linkTo(methodOn(CommentController.class).getAllCommentsForPost(postId)).withRel("comments")  );
-    return ResponseEntity.noContent().build();
+    
+    
 }
 
-}

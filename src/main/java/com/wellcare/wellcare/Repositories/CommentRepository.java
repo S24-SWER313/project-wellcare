@@ -6,7 +6,7 @@ import com.wellcare.wellcare.Models.Comment;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
-    
 
     
+
 }
