@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -35,6 +36,7 @@ public class JwtUtils {
 
         return Jwts.builder()
                 .setSubject((userPrincipal.getUsername()))
+                .claim("userId", userPrincipal.getId())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key(), SignatureAlgorithm.HS256)
@@ -48,6 +50,17 @@ public class JwtUtils {
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parserBuilder().setSigningKey(key()).build()
                 .parseClaimsJws(token).getBody().getSubject();
+    }
+
+    public Long getUserIdFromJwtToken(String token) {
+        Claims claims = Jwts.parserBuilder().setSigningKey(key()).build()
+                .parseClaimsJws(token).getBody();
+        Object userIdObject = claims.get("userId");
+        if (userIdObject != null) {
+            return Long.parseLong(userIdObject.toString());
+        } else {
+            throw new IllegalArgumentException("User ID not found in JWT token");
+        }
     }
 
     public boolean validateJwtToken(String authToken) {

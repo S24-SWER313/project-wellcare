@@ -12,10 +12,10 @@ import com.wellcare.wellcare.Models.Post;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
 
-    @Query("select p from Post p where p.author.id = :userId")
+    @Query("select p from Post p where p.user.id = :userId")
     public List<Post> findByUserId(@Param("userId") Long userId);
 
-    @Query("SELECT p FROM Post p JOIN p.author u JOIN u.role r WHERE r.name = :role ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Post p JOIN p.user u JOIN u.role r WHERE r.name = :role ORDER BY p.createdAt DESC")
     Optional<List<Post>> findAllPostsByRole(@Param("role") ERole role);
 
     @Query("SELECT p FROM Post p JOIN FETCH p.likes LEFT JOIN FETCH p.comments WHERE p.id = ?1")

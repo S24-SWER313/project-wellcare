@@ -20,11 +20,11 @@ public class PostModelAssembler implements RepresentationModelAssembler<Post, En
 
             return EntityModel.of(
                     post,
-                    linkTo(methodOn(PostController.class).getFilteredPosts(post.getAuthor().getId(), null))
+                    linkTo(methodOn(PostController.class).getFilteredPosts(post.getUser().getId(), null))
                             .withRel("allPosts"),
-                    linkTo(methodOn(PostController.class).toggleLikePost(post.getId(), post.getAuthor().getId()))
+                    linkTo(methodOn(PostController.class).toggleLikePost(post.getId(), post.getUser().getId()))
                             .withRel("toggleLike"),
-                    linkTo(methodOn(PostController.class).toggleSavePost(post.getId(), post.getAuthor().getId()))
+                    linkTo(methodOn(PostController.class).toggleSavePost(post.getId(), post.getUser().getId()))
                             .withRel("toggleSave")
 
             );

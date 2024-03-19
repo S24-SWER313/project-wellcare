@@ -40,33 +40,29 @@ public class Post {
     private Integer noOfComments;
 
     @ManyToOne
-    @JoinColumn(name = "author_id")
-    private User author;
+    @JoinColumn(name = "user_id")
+    private User user;
 
-    @ManyToMany(cascade = CascadeType.ALL )
+    @ManyToMany(cascade = CascadeType.ALL)
     @JoinTable(name = "post_likes", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<User> likes = new HashSet<>();
 
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL , orphanRemoval = true)
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();
 
     public Post() {
         this.createdAt = LocalDateTime.now();
     }
 
-    public Post(User author, String content) {
-        this.author = author;
+    public Post(String content) {
         this.content = content;
         this.createdAt = LocalDateTime.now();
     }
 
-    public Post(User author, String location, List<String> attachment) {
-        this.author = author;
+    public Post(String location, List<String> attachment) {
         this.createdAt = LocalDateTime.now();
         this.location = location;
         this.attachment = new ArrayList<String>(attachment);
     }
-
-
 
 }
