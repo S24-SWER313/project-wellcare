@@ -27,7 +27,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT DISTINCT u FROM User u WHERE u.username LIKE %:query% OR u.email LIKE %:query%")
     public List<User> findBySearch(@Param("query") String query);
 
-    @Query("SELECT u FROM User u JOIN u.roles r WHERE r.name = :roleName")
+    @Query("SELECT u FROM User u JOIN u.role r WHERE r.name = :roleName")
     List<User> findAllUsersByRole(@Param("roleName") ERole roleName);
 
 }
