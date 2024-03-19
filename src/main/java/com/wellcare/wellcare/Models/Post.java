@@ -43,11 +43,11 @@ public class Post {
     @JoinColumn(name = "author_id")
     private User author;
 
-    @ManyToMany
+    @ManyToMany(cascade = CascadeType.ALL )
     @JoinTable(name = "post_likes", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<User> likes = new HashSet<>();
 
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL , orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();
 
     public Post() {

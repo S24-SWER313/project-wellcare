@@ -1,18 +1,13 @@
 package com.wellcare.wellcare.Controllers;
 
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
-
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
+import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,7 +42,6 @@ public class CommentController {
     @Autowired
     private CommentRepository commentRepository;
 
-    @SuppressWarnings("null") // @RequestHeader("Authorization") string token
     @PostMapping("/{postId}")
     public ResponseEntity<EntityModel<Comment>> createComment(@RequestBody Comment comment, @PathVariable Long postId,
             @PathVariable Long userId) throws UserException, PostException {
@@ -76,99 +70,37 @@ public class CommentController {
         }
     }
 
-    @SuppressWarnings("null")
+    // to update a comment
     @PutMapping("/{commentId}")
-    public ResponseEntity<EntityModel<Comment>> updateComment(@PathVariable Long postId, @PathVariable Long commentId,
-            @RequestBody Comment updatedComment) {
-        try {
-            Post post = postRepository.findById(postId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Post", postId));
-
-            Comment comment = post.getComments().stream()
-                    .filter(c -> c.getId().equals(commentId))
-                    .findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException("Comment", commentId));
-
-            if (updatedComment.getContent() == null && updatedComment.getAttachment() == null) {
-                throw new IllegalArgumentException("Comment must have either content or attachment");
-            }
-
-            comment.setContent(updatedComment.getContent());
-            comment.setAttachment(updatedComment.getAttachment());
-
-            postRepository.save(post);
-
-            return ResponseEntity.ok(commentModelAssembler.toModel(comment));
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<EntityModel<Comment>> updateComment(@PathVariable Long commentId,
+            @RequestBody Comment updatedComment) throws BadRequestException {
+        Optional<Comment> optionalComment = commentRepository.findById(commentId);
+        if (optionalComment.isEmpty()) {
+            throw new ResourceNotFoundException("Comment", commentId);
         }
+
+        Comment existingComment = optionalComment.get();
+
+        existingComment.setContent(updatedComment.getContent());
+        existingComment.setAttachment(updatedComment.getAttachment());
+        commentRepository.save(existingComment);
+        return ResponseEntity.ok(commentModelAssembler.toModel(existingComment));
     }
 
-    @SuppressWarnings("null")
+    // to delete a comment
     @DeleteMapping("/{commentId}")
-    public ResponseEntity<EntityModel<Comment>> deleteComment(@PathVariable Long postId, @PathVariable Long commentId) {
-        try {
-            Optional<Post> optionalPost = postRepository.findById(postId);
-            if (optionalPost.isEmpty()) {
-                throw new ResourceNotFoundException("Post", postId);
-            }
-            Post post = optionalPost.get();
-            Optional<Comment> optionalComment = post.getComments().stream()
-                    .filter(comment -> comment.getId().equals(commentId))
-                    .findFirst();
+    public ResponseEntity<?> deleteComment(@PathVariable Long commentId) {
 
-            if (optionalComment.isEmpty()) {
-                throw new ResourceNotFoundException("Comment", commentId);
-            }
-            Comment comment = optionalComment.get();
-            post.getComments().remove(comment);
-            postRepository.save(post);
-            commentRepository.delete(comment);
-
-            return ResponseEntity.ok(commentModelAssembler.toModel(comment));
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
+        Optional<Comment> optionalComment = commentRepository.findById(commentId);
+        if (optionalComment.isEmpty()) {
+            throw new ResourceNotFoundException("Comment", commentId);
         }
+        Comment comment = optionalComment.get();
+        commentRepository.delete(comment);
+        return ResponseEntity.noContent().build();
     }
 
-    @SuppressWarnings("null")
-    @GetMapping("/{commentId}")
-    public ResponseEntity<EntityModel<Comment>> getCommentById(@PathVariable Long commentId) {
-        try {
-            Comment comment = commentRepository.findById(commentId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Comment", commentId));
-
-            return ResponseEntity.ok(commentModelAssembler.toModel(comment));
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @SuppressWarnings("null")
-    @GetMapping("/{postId}")
-    public ResponseEntity<CollectionModel<EntityModel<Comment>>> getAllCommentsByPostId(@PathVariable Long postId) {
-        try {
-            Optional<Post> optionalPost = postRepository.findById(postId);
-            if (optionalPost.isEmpty()) {
-                return ResponseEntity.notFound().build();
-            }
-            Post post = optionalPost.get();
-            List<Comment> comments = commentRepository.findAllByPost(post);
-
-            List<EntityModel<Comment>> commentModels = comments.stream()
-                    .map(commentModelAssembler::toModel)
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(CollectionModel.of(
-                    commentModels,
-                    linkTo(methodOn(CommentController.class).getAllCommentsByPostId(postId)).withSelfRel()));
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @SuppressWarnings("null")
-    @PutMapping("/like/{commentId}")
+    @PutMapping("/like-switcher/{commentId}")
     public ResponseEntity<EntityModel<Comment>> toggleLikeComment(@PathVariable Long userId,
             @PathVariable Long commentId) {
         try {
