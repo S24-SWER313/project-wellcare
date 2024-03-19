@@ -12,11 +12,6 @@ import java.util.List;
 
 public interface PostRepository extends JpaRepository<Post, Long>{
 
-      @Query("SELECT p FROM Post p LEFT JOIN FETCH p.likedBy LEFT JOIN FETCH p.comments WHERE p.id = ?1")
-    Optional<Post> findByIdWithLikesAndComments(Long postId);
-
-       public Optional<Post> findById(Long id);
-
        List<Post> findByAuthorId(Long authorId);
 
 }

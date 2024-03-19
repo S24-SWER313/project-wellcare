@@ -21,8 +21,7 @@ public class CommentModelAssembler implements RepresentationModelAssembler<Comme
     @Override
     public EntityModel<Comment> toModel(Comment comment) {
 
-        return EntityModel.of(comment, 
-        linkTo(methodOn(PostController.class).getPostById(comment.getPost().getId())).withRel("post")
+        return EntityModel.of(comment
        
         );    
 

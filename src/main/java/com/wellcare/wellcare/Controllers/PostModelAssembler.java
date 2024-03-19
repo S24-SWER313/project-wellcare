@@ -20,8 +20,7 @@ public class PostModelAssembler implements RepresentationModelAssembler<Post, En
     @SuppressWarnings("null")
     @Override
     public EntityModel<Post> toModel(Post post) {
-        return EntityModel.of(post,
-                linkTo(methodOn(PostController.class).getPostById(post.getId())).withSelfRel()
+        return EntityModel.of(post
         );
     }
 

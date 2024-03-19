@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,30 +42,21 @@ public class PostController {
         this.postModelAssembler = postModelAssembler;
     }
 
-     @PostMapping("/{UserId}")
-    public ResponseEntity<EntityModel<Post>> createPost(@RequestBody Post post, @PathVariable Long userId) throws UserException {
-        Optional<User> optionalUser = userRepo.findById(userId);
-        if (optionalUser.isEmpty()) {
-            throw new ResourceNotFoundException("User", userId);
-        }
-        User user = optionalUser.get();
-        post.setAuthor(user);
-        post.setCreatedAt(LocalDateTime.now());
-        Post createdpost = postRepo.saveAndFlush(post);        
-        EntityModel<Post> postModel = postModelAssembler.toModel(createdpost);
-        return new ResponseEntity<>(postModel, HttpStatus.CREATED);
+    //  @PostMapping("/new-post")
+    // public ResponseEntity<EntityModel<Post>> createPost(@RequestBody Post post, Authentication authentication) throws UserException {
+    //     String userId = authentication.getDetails(). 
+    //     if (userId == null) {
+    //         throw new UserException("Missing user ID in JWT");
+    //     }
+    //     Long authorId = Long.parseLong(userId);
+    //     User user = optionalUser.get();
+    //     post.setAuthor(user);
+    //     post.setCreatedAt(LocalDateTime.now());
+    //     Post createdpost = postRepo.saveAndFlush(post);        
+    //     EntityModel<Post> postModel = postModelAssembler.toModel(createdpost);
+    //     return new ResponseEntity<>(postModel, HttpStatus.CREATED);
         
-    } 
-
-    @GetMapping("/{postId}")
-    public ResponseEntity<EntityModel<Post>> getPostById(@PathVariable Long postId) {
-            Post post = postRepo.findByIdWithLikesAndComments(postId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Post", postId));
-                    EntityModel<Post> postModel = postModelAssembler.toModel(post);
-                    return new ResponseEntity<>(postModel, HttpStatus.OK);
-             
-        }
-    
+    // } 
 
     @PutMapping("/{postId}")
     public ResponseEntity<EntityModel<Post>> updatePost(@RequestBody Post updatedPost, @PathVariable Long postId) {
