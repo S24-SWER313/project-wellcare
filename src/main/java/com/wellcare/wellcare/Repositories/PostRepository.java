@@ -1,12 +1,17 @@
 package com.wellcare.wellcare.Repositories;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import com.wellcare.wellcare.Models.Post;
+import com.wellcare.wellcare.Models.User;
+import java.util.List;
+
 
 public interface PostRepository extends JpaRepository<Post, Long>{
 
-    
+       List<Post> findByAuthorId(Long authorId);
 
-    
 }

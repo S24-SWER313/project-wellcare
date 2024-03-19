@@ -50,4 +50,10 @@ public class GlobalExceptions {
         ErrorDetails error = new ErrorDetails(exc.getMessage(), req.getDescription(false), LocalDateTime.now());
         return new ResponseEntity<ErrorDetails>(error, HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+  public ResponseEntity<ErrorDetails> handleResourceNotFound(ResourceNotFoundException ex, WebRequest req) {
+    ErrorDetails error = new ErrorDetails(ex.getMessage(), req.getDescription(false), LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.NOT_FOUND); // Use specific status code
+  }
 }

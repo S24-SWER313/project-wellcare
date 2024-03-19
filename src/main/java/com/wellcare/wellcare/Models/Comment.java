@@ -32,6 +32,7 @@ public class Comment {
     @JoinColumn(name = "user_id")
     private User author;
 
+    
     private String content;
 
     @ManyToMany(cascade = CascadeType.ALL)

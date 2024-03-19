@@ -20,7 +20,7 @@ import lombok.Data;
 enum Gender {
     FEMALE,
     MALE,
-}
+} 
 
 @Entity
 @Data
@@ -51,6 +51,7 @@ public class User {
 
     @ManyToMany(fetch = FetchType.EAGER)
     private List<Post> savedPost = new ArrayList<>();
+    
 
     public User() {
     }
