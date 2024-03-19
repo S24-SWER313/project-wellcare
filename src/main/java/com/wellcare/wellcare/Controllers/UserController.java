@@ -59,7 +59,6 @@ public class UserController {
             User user = existingUser.get();
 
             user.setFirstName(updatedUser.getFirstName());
-            user.setUsername(updatedUser.getUsername());
             user.setLastName(updatedUser.getLastName());
             user.setEmail(updatedUser.getEmail());
             user.setMobile(updatedUser.getMobile());
@@ -67,15 +66,39 @@ public class UserController {
             user.setGender(updatedUser.getGender());
             user.setImage(updatedUser.getImage());
 
-            // Check if the password field is provided and update password if necessary
-            if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
-                String hashedPassword = encoder.encode(updatedUser.getPassword()); // Hash the password
-                user.setPassword(hashedPassword);
-            }
-
             userRepository.save(user);
 
             return ResponseEntity.ok().body("User profile updated successfully");
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+    }
+
+    @PutMapping("/profile/{userId}/password")
+    @Transactional
+    public ResponseEntity<?> updateUserPassword(@PathVariable Long userId, @RequestBody String newPassword) {
+        // Get the authenticated user
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+        // Check if the authenticated user ID matches the requested user ID
+        if (!userDetails.getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("You are not authorized to update this password");
+        }
+
+        Optional<User> existingUser = userRepository.findById(userId);
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+
+            // Hash the new password
+            String hashedPassword = encoder.encode(newPassword);
+
+            // Update the user's password
+            user.setPassword(hashedPassword);
+            userRepository.save(user);
+
+            return ResponseEntity.ok().body("Password updated successfully");
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         }
