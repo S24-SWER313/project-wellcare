@@ -1,17 +1,24 @@
 package com.wellcare.wellcare.Repositories;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Post;
-import com.wellcare.wellcare.Models.User;
-import java.util.List;
 
+public interface PostRepository extends JpaRepository<Post, Long> {
 
-public interface PostRepository extends JpaRepository<Post, Long>{
+    @Query("select p from Post p where p.author.id = :userId")
+    public List<Post> findByUserId(@Param("userId") Long userId);
 
-       List<Post> findByAuthorId(Long authorId);
+    @Query("SELECT p FROM Post p JOIN p.author u JOIN u.role r WHERE r.name = :role ORDER BY p.createdAt DESC")
+    Optional<List<Post>> findAllPostsByRole(@Param("role") ERole role);
+
+    @Query("SELECT p FROM Post p JOIN FETCH p.likes LEFT JOIN FETCH p.comments WHERE p.id = ?1")
+    Optional<Post> findByIdWithLikesAndComments(Long postId);
 
 }

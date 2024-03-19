@@ -45,7 +45,7 @@ public class Post {
 
     @ManyToMany(cascade = CascadeType.ALL )
     @JoinTable(name = "post_likes", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
-    private Set<User> likedBy = new HashSet<>();
+    private Set<User> likes = new HashSet<>();
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL , orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();
@@ -66,5 +66,7 @@ public class Post {
         this.location = location;
         this.attachment = new ArrayList<String>(attachment);
     }
+
+
 
 }
