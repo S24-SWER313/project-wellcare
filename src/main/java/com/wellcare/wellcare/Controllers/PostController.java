@@ -3,10 +3,8 @@ package com.wellcare.wellcare.Controllers;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -31,6 +29,7 @@ import com.wellcare.wellcare.Assemblers.PostModelAssembler;
 import com.wellcare.wellcare.Exceptions.PostException;
 import com.wellcare.wellcare.Exceptions.ResourceNotFoundException;
 import com.wellcare.wellcare.Exceptions.UserException;
+import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Post;
 import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.CommentRepository;
@@ -110,7 +109,7 @@ public class PostController {
 
     // to get all the posts of specific user
     @GetMapping("/{userId}")
-    public ResponseEntity<List<EntityModel<Post>>> getPostsByAuthorId(@PathVariable Long userId) {
+    public ResponseEntity<List<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId) {
         List<Post> userposts = postRepository.findByUserId(userId);
         if (userposts.isEmpty()) {
             throw new ResourceNotFoundException("User", userId);
@@ -121,7 +120,6 @@ public class PostController {
 
     @DeleteMapping("/{postId}")
     public ResponseEntity<?> deletePost(@PathVariable Long postId) {
-
         Optional<Post> optionalPost = postRepository.findById(postId);
         if (optionalPost.isEmpty()) {
             throw new ResourceNotFoundException("Post", postId);
@@ -131,60 +129,59 @@ public class PostController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    @GetMapping("/feed/{userId}")
-    public ResponseEntity<CollectionModel<EntityModel<Post>>> getFilteredPosts(@PathVariable Long userId,
-            @RequestParam(required = false) Boolean following) throws UserException {
-        try {
-            List<Long> userIds = getUserIds(userId, following);
-            List<Post> posts = new ArrayList<>();
+    @GetMapping("/feed")
+    public ResponseEntity<CollectionModel<EntityModel<Post>>> getFilteredPosts(
+            @RequestParam(required = false) ERole role) {
 
-            for (Long id : userIds) {
-                List<Post> userPosts = postRepository.findByUserId(id);
-                posts.addAll(userPosts);
+        List<Post> posts;
+        if (role != null) {
+            // Fetch users by role
+            List<User> usersByRole = userRepository.findAllUsersByRole(role);
+            if (usersByRole.isEmpty()) {
+                throw new ResourceNotFoundException("Users", null, new Throwable("No users found for the given role"));
             }
 
-            List<EntityModel<Post>> postModels = posts.stream()
-                    .map(postModelAssembler::toModel)
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(CollectionModel.of(
-                    postModels,
-                    linkTo(methodOn(PostController.class).getFilteredPosts(userId, following)).withSelfRel()));
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @SuppressWarnings("null")
-    private List<Long> getUserIds(Long userId, Boolean following) throws UserException {
-        List<Long> userIds = new ArrayList<>();
-        if (following != null && following) {
-            Optional<User> optionalUser = userRepository.findById(userId);
-            if (optionalUser.isPresent()) {
-                User user = optionalUser.get();
-                Set<User> followedUsers = user.getFollowing();
-                for (User followedUser : followedUsers) {
-                    userIds.add(followedUser.getId());
-                }
-            }
+            // Extract user IDs from usersByRole list
+            List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
+            System.out.println("userIds userIds userIds " + userIds);
+            // Fetch posts by user IDs
+            posts = postRepository.findAllPostsByUserIds(userIds)
+                    .orElseThrow(() -> new ResourceNotFoundException("Posts", null,
+                            new Throwable("No posts found for the given role")));
         } else {
-            userIds.add(userId);
+            posts = postRepository.findAll();
         }
-        return userIds;
+
+        List<EntityModel<Post>> postModels = posts.stream()
+                .map(postModelAssembler::toModel)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(CollectionModel.of(
+                postModels,
+                linkTo(methodOn(PostController.class).getFilteredPosts(role)).withSelfRel()));
     }
 
-    @SuppressWarnings("null")
     @PutMapping("/like-switcher/{postId}")
-    public ResponseEntity<EntityModel<Post>> toggleLikePost(@PathVariable Long postId, @PathVariable Long userId)
+    public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
             throws UserException, PostException {
 
         try {
+            // Extract the JWT token from the request
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
+
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
             Optional<User> optionalUser = userRepository.findById(userId);
-            User user = optionalUser.get();
+            User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
 
             Optional<Post> optionalPost = postRepository.findById(postId);
-            Post post = optionalPost.get();
+            Post post = optionalPost.orElseThrow(() -> new PostException("Post not found"));
 
+            // Initialize the likes collection
+            post.getLikes().size(); // Force initialization
+            post.getComments().size();
             if (post.getLikes().contains(user))
                 post.getLikes().remove(user);
             else
@@ -195,15 +192,30 @@ public class PostController {
 
         } catch (ResourceNotFoundException ex) {
             return ResponseEntity.notFound().build();
-
         }
     }
 
-    @SuppressWarnings("null")
+    @GetMapping("/")
+    public ResponseEntity<List<EntityModel<Post>>> getAllPosts() {
+        List<Post> posts = postRepository.findAll();
+        List<EntityModel<Post>> postModels = posts.stream()
+                .map(postModelAssembler::toModel)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(postModels);
+    }
+
     @PutMapping("/save-switcher/{postId}")
-    public ResponseEntity<EntityModel<Post>> toggleSavePost(@PathVariable Long postId, @PathVariable Long userId)
+    public ResponseEntity<EntityModel<Post>> toggleSavePost(HttpServletRequest request, @PathVariable Long postId)
             throws UserException, PostException {
         try {
+            // Extract the JWT token from the request
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
+
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
             Optional<User> optionalUser = userRepository.findById(userId);
             Optional<Post> optionalPost = postRepository.findById(postId);
 
