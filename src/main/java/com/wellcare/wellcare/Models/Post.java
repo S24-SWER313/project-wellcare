@@ -6,6 +6,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.annotation.Nullable;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -36,9 +39,9 @@ public class Post {
 
     private List<String> attachment;
 
-    private Integer noOfLikes;
+    private Integer noOfLikes = 0 ;
 
-    private Integer noOfComments;
+    private Integer noOfComments = 0;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -48,22 +51,28 @@ public class Post {
     @JoinTable(name = "post_likes", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<User> likes = new HashSet<>();
 
+      @JsonIgnore
     @OneToMany(mappedBy = "post", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();
 
     public Post() {
         this.createdAt = LocalDateTime.now();
+        this.noOfLikes = 0 ;
     }
 
     public Post(String content) {
         this.content = content;
         this.createdAt = LocalDateTime.now();
+        this.noOfLikes = 0;
+        this.noOfComments = 0 ;
     }
 
     public Post(String location, List<String> attachment) {
         this.createdAt = LocalDateTime.now();
         this.location = location;
         this.attachment = new ArrayList<String>(attachment);
+        this.noOfLikes = 0;
+        this.noOfComments = 0;
     }
 
 }

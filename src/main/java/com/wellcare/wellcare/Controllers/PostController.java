@@ -15,6 +15,7 @@ import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +40,7 @@ import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 
 import io.jsonwebtoken.JwtException;
+import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -57,6 +59,9 @@ public class PostController {
     @Autowired
     AuthTokenFilter authTokenFilter;
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
+
+    @Autowired
+    private EntityManager entityManager;
 
     @PostMapping("/new-post")
     public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request, @RequestBody Post post,
@@ -111,13 +116,15 @@ public class PostController {
     @GetMapping("/{userId}")
     public ResponseEntity<List<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId) {
         List<Post> userposts = postRepository.findByUserId(userId);
-        if (userposts.isEmpty()) {
-            throw new ResourceNotFoundException("User", userId);
-        }
-        List<EntityModel<Post>> postModels = (List<EntityModel<Post>>) postModelAssembler.toCollectionModel(userposts);
-        return new ResponseEntity<>(postModels, HttpStatus.OK);
+
+        List<EntityModel<Post>> postModels = userposts.stream()
+        .map(postModelAssembler::toModel)
+        .collect(Collectors.toList());
+       
+        return ResponseEntity.ok(postModels);
     }
 
+    @Transactional
     @DeleteMapping("/{postId}")
     public ResponseEntity<?> deletePost(@PathVariable Long postId) {
         Optional<Post> optionalPost = postRepository.findById(postId);
@@ -125,7 +132,7 @@ public class PostController {
             throw new ResourceNotFoundException("Post", postId);
         }
         Post post = optionalPost.get();
-        postRepository.delete(post);
+        postRepository.deleteById(post.getId());
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
@@ -160,7 +167,8 @@ public class PostController {
                 postModels,
                 linkTo(methodOn(PostController.class).getFilteredPosts(role)).withSelfRel()));
     }
-
+    
+    @Transactional
     @PutMapping("/like-switcher/{postId}")
     public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
             throws UserException, PostException {
@@ -179,13 +187,18 @@ public class PostController {
             Optional<Post> optionalPost = postRepository.findById(postId);
             Post post = optionalPost.orElseThrow(() -> new PostException("Post not found"));
 
+           
+            user = entityManager.merge(user);
+
             // Initialize the likes collection
             post.getLikes().size(); // Force initialization
             post.getComments().size();
-            if (post.getLikes().contains(user))
+            if (post.getLikes().contains(user)){
                 post.getLikes().remove(user);
-            else
+                post.setNoOfLikes(post.getNoOfLikes() - 1);}
+            else{
                 post.getLikes().add(user);
+                post.setNoOfLikes(post.getNoOfLikes() + 1);}
 
             Post likedPost = postRepository.save(post);
             return ResponseEntity.ok(postModelAssembler.toModel(likedPost));

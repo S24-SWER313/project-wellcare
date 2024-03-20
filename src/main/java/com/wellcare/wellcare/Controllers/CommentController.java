@@ -2,11 +2,15 @@ package com.wellcare.wellcare.Controllers;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.coyote.BadRequestException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +29,11 @@ import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.CommentRepository;
 import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
+import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
+import com.wellcare.wellcare.Security.jwt.JwtUtils;
+
+import jakarta.persistence.EntityManager;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/comments")
@@ -41,6 +50,15 @@ public class CommentController {
 
     @Autowired
     private CommentRepository commentRepository;
+      @Autowired
+    JwtUtils jwtUtils;
+    @Autowired
+    AuthTokenFilter authTokenFilter;
+    private static final Logger logger = LoggerFactory.getLogger(CommentController.class);
+
+    @Autowired
+    private EntityManager entityManager;
+
 
     @PostMapping("/{postId}")
     public ResponseEntity<EntityModel<Comment>> createComment(@RequestBody Comment comment, @PathVariable Long postId,
@@ -88,39 +106,59 @@ public class CommentController {
     }
 
     // to delete a comment
+    @Transactional
     @DeleteMapping("/{commentId}")
     public ResponseEntity<?> deleteComment(@PathVariable Long commentId) {
-
         Optional<Comment> optionalComment = commentRepository.findById(commentId);
         if (optionalComment.isEmpty()) {
             throw new ResourceNotFoundException("Comment", commentId);
         }
         Comment comment = optionalComment.get();
-        commentRepository.delete(comment);
+        commentRepository.deleteById(comment.getId());
         return ResponseEntity.noContent().build();
     }
 
+    @Transactional
     @PutMapping("/like-switcher/{commentId}")
-    public ResponseEntity<EntityModel<Comment>> toggleLikeComment(@PathVariable Long userId,
-            @PathVariable Long commentId) {
+    public ResponseEntity<EntityModel<Comment>> toggleLikeComment(HttpServletRequest request, @PathVariable Long commentId)
+            throws UserException, PostException {
+    
         try {
-            Optional<User> optionalUser = userRepository.findById(userId);
-            User user = optionalUser.orElseThrow(() -> new ResourceNotFoundException("User", userId));
+            // Extract the JWT token from the request
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
+    
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
+    
+            // Retrieve the user from the repository
+            User user = userRepository.findById(userId)
+                                     .orElseThrow(() -> new UserException("User not found"));
+    
+            // Retrieve the comment from the repository
+            Comment comment = commentRepository.findById(commentId)
+                                               .orElseThrow(() -> new PostException("Comment not found"));
+    
+            user = entityManager.merge(user);
 
-            Optional<Comment> optionalComment = commentRepository.findById(commentId);
-            Comment comment = optionalComment.orElseThrow(() -> new ResourceNotFoundException("Comment", commentId));
-
-            if (comment.getCommentLikes().contains(user)) {
-                comment.getCommentLikes().remove(user);
+            // Toggle like status
+            Set<User> likes = comment.getCommentLikes();
+            if (likes.contains(user)) {
+                likes.remove(user);
+                comment.setNoOfLikes(comment.getNoOfLikes() - 1);
             } else {
-                comment.getCommentLikes().add(user);
+                likes.add(user);
+                comment.setNoOfLikes(comment.getNoOfLikes() + 1);
             }
-
-            Comment savedComment = commentRepository.save(comment);
-
-            return ResponseEntity.ok(commentModelAssembler.toModel(savedComment));
-        } catch (ResourceNotFoundException ex) {
+    
+            // Save the updated comment
+            Comment likedComment = commentRepository.save(comment);
+            return ResponseEntity.ok(commentModelAssembler.toModel(likedComment));
+    
+        } catch (UserException | PostException ex) {
+            // Handle exceptions
             return ResponseEntity.notFound().build();
         }
     }
-}
+}    

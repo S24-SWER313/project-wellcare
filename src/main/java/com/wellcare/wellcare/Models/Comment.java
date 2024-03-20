@@ -32,7 +32,7 @@ public class Comment {
     @JoinColumn(name = "user_id")
     private User author;
 
-    
+    private long noOfLikes;
     private String content;
 
     @ManyToMany(cascade = CascadeType.ALL)
@@ -53,6 +53,7 @@ public class Comment {
         this.author = author;
         this.content = content;
         this.createdAt = LocalDateTime.now();
+        this.noOfLikes = 0;
     }
 
     public Comment(User author, String content, String attachment) {
@@ -60,6 +61,7 @@ public class Comment {
         this.content = content;
         this.attachment = attachment;
         this.createdAt = LocalDateTime.now();
+        this.noOfLikes = 0;
     }
 
 }

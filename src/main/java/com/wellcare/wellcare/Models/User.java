@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -49,12 +51,14 @@ public class User {
     @ManyToMany(fetch = FetchType.EAGER, mappedBy = "follower")
     private Set<User> following = new HashSet<>();
 
+    @JsonIgnore
     @ManyToMany(fetch = FetchType.EAGER)
     private List<Post> savedPost = new ArrayList<>();
     
 
     public User() {
     }
+
 
     public User(String username, String email, String password) {
         this.username = username;
