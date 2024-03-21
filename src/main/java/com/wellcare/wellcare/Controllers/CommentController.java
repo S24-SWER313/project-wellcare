@@ -8,7 +8,9 @@ import org.apache.coyote.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.pulsar.PulsarProperties.Authentication;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wellcare.wellcare.Assemblers.CommentModelAssembler;
+import com.wellcare.wellcare.Exceptions.CommentException;
 import com.wellcare.wellcare.Exceptions.PostException;
 import com.wellcare.wellcare.Exceptions.ResourceNotFoundException;
 import com.wellcare.wellcare.Exceptions.UserException;
@@ -31,6 +34,7 @@ import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.payload.response.MessageResponse;
 
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
@@ -61,32 +65,41 @@ public class CommentController {
 
 
     @PostMapping("/{postId}")
-    public ResponseEntity<EntityModel<Comment>> createComment(@RequestBody Comment comment, @PathVariable Long postId,
-            @PathVariable Long userId) throws UserException, PostException {
+public ResponseEntity<EntityModel<Comment>> createComment(@RequestBody Comment comment, @PathVariable Long postId,
+        HttpServletRequest request) throws UserException, PostException {
 
-        try {
-            Optional<User> optionalUser = userRepository.findById(userId);
+    try {
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
 
-            User user = optionalUser.get();
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
 
-            Optional<Post> optionalPost = postRepository.findById(postId);
+        Optional<User> existingUserOptional = userRepository.findById(userId);
+        User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
 
-            Post post = optionalPost.get();
+        Optional<Post> optionalPost = postRepository.findById(postId);
+        Post post = optionalPost.orElseThrow(() -> new PostException("Post not found"));
 
-            comment.setAuthor(user);
-            comment.setCreatedAt(LocalDateTime.now());
+        comment.setUser(user);
+        comment.setCreatedAt(LocalDateTime.now());
 
-            Comment createdComment = commentRepository.save(comment);
-            post.getComments().add(createdComment);
+        comment.setPost(post);
 
-            postRepository.save(post);
+        Comment createdComment = commentRepository.save(comment);
+        post.getComments().add(createdComment);
+        post.setNoOfComments(post.getNoOfComments() + 1);
+        System.out.println("Incremented noOfComments to: " + post.getNoOfComments()); // Add logging
 
-            return ResponseEntity.ok(commentModelAssembler.toModel(createdComment));
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
+        postRepository.save(post);
 
-        }
+        return ResponseEntity.ok(commentModelAssembler.toModel(createdComment));
+    } catch (ResourceNotFoundException ex) {
+        return ResponseEntity.notFound().build();
+
     }
+}
+
 
     // to update a comment
     @PutMapping("/{commentId}")
@@ -105,23 +118,38 @@ public class CommentController {
         return ResponseEntity.ok(commentModelAssembler.toModel(existingComment));
     }
 
-    // to delete a comment
     @Transactional
     @DeleteMapping("/{commentId}")
-    public ResponseEntity<?> deleteComment(@PathVariable Long commentId) {
-        Optional<Comment> optionalComment = commentRepository.findById(commentId);
-        if (optionalComment.isEmpty()) {
-            throw new ResourceNotFoundException("Comment", commentId);
+    public ResponseEntity<MessageResponse> deleteComment(@PathVariable Long commentId) {
+        try {
+            Optional<Comment> optionalComment = commentRepository.findById(commentId);
+            if (optionalComment.isEmpty()) {
+                throw new ResourceNotFoundException("Comment", commentId);
+            }
+            Comment comment = optionalComment.get();
+                        
+            Post post = comment.getPost();
+            if (post != null && post.getId().equals(comment.getPost().getId())) {
+                post.getComments().remove(comment);
+                post.setNoOfComments(post.getNoOfComments() - 1);
+                postRepository.save(post); // This line saves the updated Post object with decreased noOfComments
+            }
+    
+            commentRepository.deleteById(commentId);
+            
+            return ResponseEntity.ok(new MessageResponse("Comment deleted successfully"));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                 .body(new MessageResponse("Failed to delete comment with ID: " + commentId));
         }
-        Comment comment = optionalComment.get();
-        commentRepository.deleteById(comment.getId());
-        return ResponseEntity.noContent().build();
     }
+    
 
     @Transactional
     @PutMapping("/like-switcher/{commentId}")
     public ResponseEntity<EntityModel<Comment>> toggleLikeComment(HttpServletRequest request, @PathVariable Long commentId)
-            throws UserException, PostException {
+            throws UserException, PostException, CommentException {
     
         try {
             // Extract the JWT token from the request
@@ -138,7 +166,7 @@ public class CommentController {
     
             // Retrieve the comment from the repository
             Comment comment = commentRepository.findById(commentId)
-                                               .orElseThrow(() -> new PostException("Comment not found"));
+                                               .orElseThrow(() -> new CommentException("Comment not found"));
     
             user = entityManager.merge(user);
 
@@ -152,13 +180,14 @@ public class CommentController {
                 comment.setNoOfLikes(comment.getNoOfLikes() + 1);
             }
     
-            // Save the updated comment
             Comment likedComment = commentRepository.save(comment);
             return ResponseEntity.ok(commentModelAssembler.toModel(likedComment));
     
-        } catch (UserException | PostException ex) {
+        } catch (UserException ex) {
             // Handle exceptions
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }catch (CommentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 }    

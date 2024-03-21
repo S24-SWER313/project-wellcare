@@ -5,7 +5,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.RepresentationModelAssembler;
 import org.springframework.stereotype.Component;
 import com.wellcare.wellcare.Controllers.CommentController;
-import com.wellcare.wellcare.Controllers.PostController;
+import com.wellcare.wellcare.Exceptions.CommentException;
 import com.wellcare.wellcare.Exceptions.PostException;
 import com.wellcare.wellcare.Exceptions.UserException;
 import com.wellcare.wellcare.Models.Comment;
@@ -19,7 +19,7 @@ public class CommentModelAssembler implements RepresentationModelAssembler<Comme
         try {
             return EntityModel.of(comment,
                                        linkTo(methodOn(CommentController.class).toggleLikeComment(null, comment.getId())).withRel("toggleLike"));
-                                    } catch (PostException | UserException e) {
+                                    } catch (PostException | CommentException | UserException e) {
                                         e.printStackTrace();
                                         return EntityModel.of(comment);
                                     }

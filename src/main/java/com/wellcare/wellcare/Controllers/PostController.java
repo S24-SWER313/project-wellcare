@@ -38,6 +38,7 @@ import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.payload.response.MessageResponse;
 
 import io.jsonwebtoken.JwtException;
 import jakarta.persistence.EntityManager;
@@ -126,47 +127,51 @@ public class PostController {
 
     @Transactional
     @DeleteMapping("/{postId}")
-    public ResponseEntity<?> deletePost(@PathVariable Long postId) {
-        Optional<Post> optionalPost = postRepository.findById(postId);
-        if (optionalPost.isEmpty()) {
-            throw new ResourceNotFoundException("Post", postId);
+    public ResponseEntity<MessageResponse> deletePost(@PathVariable Long postId) {
+        try {
+            Optional<Post> optionalPost = postRepository.findById(postId);
+            if (optionalPost.isEmpty()) {
+                throw new ResourceNotFoundException("Post", postId);
+            }
+            Post post = optionalPost.get();
+            postRepository.delete(post);
+            return ResponseEntity.ok(new MessageResponse("Post deleted successfully"));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new MessageResponse("Failed to delete post: Post with ID " + postId + " not found"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new MessageResponse("Failed to delete post with ID: " + postId));
         }
-        Post post = optionalPost.get();
-        postRepository.deleteById(post.getId());
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-
+    
     @GetMapping("/feed")
-    public ResponseEntity<CollectionModel<EntityModel<Post>>> getFilteredPosts(
+    public ResponseEntity<List<EntityModel<Post>>> getFilteredPosts(
             @RequestParam(required = false) ERole role) {
-
+    
         List<Post> posts;
         if (role != null) {
-            // Fetch users by role
             List<User> usersByRole = userRepository.findAllUsersByRole(role);
             if (usersByRole.isEmpty()) {
                 throw new ResourceNotFoundException("Users", null, new Throwable("No users found for the given role"));
             }
-
-            // Extract user IDs from usersByRole list
+    
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
-            System.out.println("userIds userIds userIds " + userIds);
-            // Fetch posts by user IDs
             posts = postRepository.findAllPostsByUserIds(userIds)
                     .orElseThrow(() -> new ResourceNotFoundException("Posts", null,
                             new Throwable("No posts found for the given role")));
         } else {
             posts = postRepository.findAll();
         }
-
+    
         List<EntityModel<Post>> postModels = posts.stream()
                 .map(postModelAssembler::toModel)
                 .collect(Collectors.toList());
-
-        return ResponseEntity.ok(CollectionModel.of(
-                postModels,
-                linkTo(methodOn(PostController.class).getFilteredPosts(role)).withSelfRel()));
+    
+        return ResponseEntity.ok(postModels);
     }
+    
+    
     
     @Transactional
     @PutMapping("/like-switcher/{postId}")
@@ -208,50 +213,72 @@ public class PostController {
         }
     }
 
-    @GetMapping("/")
-    public ResponseEntity<List<EntityModel<Post>>> getAllPosts() {
-        List<Post> posts = postRepository.findAll();
-        List<EntityModel<Post>> postModels = posts.stream()
-                .map(postModelAssembler::toModel)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(postModels);
-    }
-
+ 
+    @Transactional
     @PutMapping("/save-switcher/{postId}")
     public ResponseEntity<EntityModel<Post>> toggleSavePost(HttpServletRequest request, @PathVariable Long postId)
-            throws UserException, PostException {
-        try {
-            // Extract the JWT token from the request
-            String jwtToken = authTokenFilter.parseJwt(request);
-            System.out.println("Extracted JWT token: " + jwtToken);
+        throws UserException, PostException {
+    try {
+        // Extract the JWT token from the request
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
 
-            // Parse the JWT token to extract the userId
-            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-            System.out.println("Extracted userId: " + userId);
-            Optional<User> optionalUser = userRepository.findById(userId);
-            Optional<Post> optionalPost = postRepository.findById(postId);
+        // Parse the JWT token to extract the userId
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+        
+        // Retrieve the user entity or throw exception if not found
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserException("User not found"));
 
-            if (optionalUser.isPresent() && optionalPost.isPresent()) {
-                User user = optionalUser.get();
-                Post post = optionalPost.get();
 
-                if (user.getSavedPost().contains(post)) {
-                    user.getSavedPost().remove(post);
-                } else {
-                    user.getSavedPost().add(post);
-                }
+        // Retrieve the post entity or throw exception if not found
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new PostException("Post not found"));
+        
+        boolean isSaved = user.getSavedPost().contains(post);
 
-                userRepository.save(user);
+        if(!isSaved){
+            user.getSavedPost().add(post);
 
-                return ResponseEntity.ok(postModelAssembler.toModel(post));
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (ResourceNotFoundException ex) {
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }else{
+            user.getSavedPost().remove(post);
         }
+       
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(postModelAssembler.toModel(post));
+        
+    } catch(ResourceNotFoundException ex){
+        ex.printStackTrace();
+        return ResponseEntity.notFound().build();
     }
+}
+
+@Transactional
+@GetMapping("/saved-posts")
+public ResponseEntity<CollectionModel<EntityModel<Post>>> getAllSavedPosts(HttpServletRequest request) throws UserException{
+
+    try{
+    String jwtToken = authTokenFilter.parseJwt(request);
+    System.out.println("Extracted JWT token: " + jwtToken);
+
+    // Parse the JWT token to extract the userId
+    Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+    System.out.println("Extracted userId: " + userId);
+    
+    // Retrieve the user entity or throw exception if not found
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserException("User not found"));
+        
+    List<Post> savedPosts = user.getSavedPost();
+
+    return ResponseEntity.ok(postModelAssembler.toCollectionModel(savedPosts));
+    } catch(ResourceNotFoundException ex){
+        ex.printStackTrace();
+        return ResponseEntity.notFound().build();
+    }
+}
 
 }
