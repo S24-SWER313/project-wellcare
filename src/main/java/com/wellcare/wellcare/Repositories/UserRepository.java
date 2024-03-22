@@ -29,5 +29,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u JOIN u.role r WHERE r.name = :roleName")
     List<User> findAllUsersByRole(@Param("roleName") ERole roleName);
-
+    
+    @Query("SELECT CASE WHEN COUNT(up.id) > 0 THEN true ELSE false END FROM User u JOIN u.savedPost up WHERE u.id = :userId AND up.id = :postId")
+    boolean existsUserSavedPostByUserIdAndPostId(Long userId, Long postId);
+    
 }

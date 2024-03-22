@@ -4,9 +4,13 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -30,13 +34,15 @@ public class Comment {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    private User author;
+    @JsonIgnoreProperties({"firstName", "lastName","password", "email", "mobile", "bio", "gender", "image", "role", "follower", "following", "savedPost"})
+    private User user;
 
-    
+    private long noOfLikes;
     private String content;
 
-    @ManyToMany(cascade = CascadeType.ALL)
+    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JoinTable(name = "comment_likes", joinColumns = @JoinColumn(name = "comment_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
+    @JsonIgnoreProperties({"id","firstName", "lastName","password", "email", "mobile", "bio", "gender", "image", "role", "follower", "following", "savedPost"})
     private Set<User> commentLikes = new HashSet<>();
 
     @Column(name = "created_at", nullable = false)
@@ -49,17 +55,19 @@ public class Comment {
     public Comment() {
     }
 
-    public Comment(User author, String content) {
-        this.author = author;
+    public Comment(User user, String content) {
+        this.user = user;
         this.content = content;
         this.createdAt = LocalDateTime.now();
+        this.noOfLikes = 0;
     }
 
-    public Comment(User author, String content, String attachment) {
-        this.author = author;
+    public Comment(User user, String content, String attachment) {
+        this.user = user;
         this.content = content;
         this.attachment = attachment;
         this.createdAt = LocalDateTime.now();
+        this.noOfLikes = 0;
     }
 
 }
