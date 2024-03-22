@@ -5,11 +5,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -25,7 +20,7 @@ import lombok.Data;
 enum Gender {
     FEMALE,
     MALE,
-} 
+}
 
 @Entity
 @Data
@@ -54,18 +49,12 @@ public class User {
     @ManyToMany(fetch = FetchType.EAGER, mappedBy = "follower")
     private Set<User> following = new HashSet<>();
 
-    @ManyToMany
-    @JoinTable(name = "user_saved_posts", 
-               joinColumns = @JoinColumn(name = "user_id"), 
-               inverseJoinColumns = @JoinColumn(name = "post_id"))
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_saved_posts", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "post_id"))
     private List<Post> savedPost = new ArrayList<>();
-    
-    
-    
 
     public User() {
     }
-
 
     public User(String username, String email, String password) {
         this.username = username;
@@ -81,13 +70,13 @@ public class User {
         this.email = email;
         this.role = role;
     }
-    
+
     // public void addSavedPost(Post post) {
-    //     this.getSavedPost().add(post);
+    // this.getSavedPost().add(post);
     // }
 
     // public void removeSavedPost(Post post) {
-    //     this.getSavedPost().remove(post);
+    // this.getSavedPost().remove(post);
     // }
 
     @Override

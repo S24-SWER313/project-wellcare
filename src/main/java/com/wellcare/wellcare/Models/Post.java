@@ -61,7 +61,7 @@ public class Post {
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(name = "post_likes", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
-    @JsonIgnoreProperties({"id","firstName", "lastName","password", "email", "mobile", "bio", "gender", "image", "role", "follower", "following", "savedPost"})
+    @JsonIgnoreProperties({"firstName", "lastName","password", "email", "mobile", "bio", "gender", "image", "role", "follower", "following", "savedPost"})
     private Set<User> likes = new HashSet<>();
 
     @OneToMany(mappedBy = "post", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)

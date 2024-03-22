@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.CascadeType;
@@ -34,7 +33,8 @@ public class Comment {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    @JsonIgnoreProperties({"firstName", "lastName","password", "email", "mobile", "bio", "gender", "image", "role", "follower", "following", "savedPost"})
+    @JsonIgnoreProperties({ "firstName", "lastName", "password", "email", "mobile", "bio", "gender", "image", "role",
+            "follower", "following", "savedPost" })
     private User user;
 
     private long noOfLikes;
@@ -42,7 +42,8 @@ public class Comment {
 
     @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JoinTable(name = "comment_likes", joinColumns = @JoinColumn(name = "comment_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
-    @JsonIgnoreProperties({"id","firstName", "lastName","password", "email", "mobile", "bio", "gender", "image", "role", "follower", "following", "savedPost"})
+    @JsonIgnoreProperties({ "firstName", "lastName", "password", "email", "mobile", "bio", "gender", "image", "role",
+            "follower", "following", "savedPost" })
     private Set<User> commentLikes = new HashSet<>();
 
     @Column(name = "created_at", nullable = false)
@@ -50,6 +51,8 @@ public class Comment {
 
     @ManyToOne
     @JoinColumn(name = "post_id")
+    @JsonIgnoreProperties({ "comments", "likes", "noOfLikes", "createdAt", "attachment", "noOfComments",
+            "location" })
     private Post post;
 
     public Comment() {
