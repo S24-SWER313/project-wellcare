@@ -2,6 +2,9 @@ package com.wellcare.wellcare.Exceptions;
 
 import java.time.LocalDateTime;
 
+import lombok.Data;
+
+@Data
 public class ErrorDetails {
     
       private String message;
@@ -18,34 +21,5 @@ public class ErrorDetails {
         this.timestamp = timestamp;
     }
 
-
-    public String getMessage() {
-        return message;
-    }
-
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-
-    public String getDetails() {
-        return details;
-    }
-
-
-    public void setDetails(String details) {
-        this.details = details;
-    }
-
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
-
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
-    }
 
 }

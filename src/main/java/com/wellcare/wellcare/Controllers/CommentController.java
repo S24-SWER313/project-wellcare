@@ -35,6 +35,7 @@ import com.wellcare.wellcare.payload.response.MessageResponse;
 
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/comments")
@@ -60,7 +61,7 @@ public class CommentController {
     private EntityManager entityManager;
 
     @PostMapping("/{postId}")
-    public ResponseEntity<EntityModel<Comment>> createComment(@RequestBody Comment comment, @PathVariable Long postId,
+    public ResponseEntity<EntityModel<Comment>> createComment(@Valid @RequestBody Comment comment, @PathVariable Long postId,
             HttpServletRequest request) throws UserException, PostException {
 
         try {
@@ -97,7 +98,7 @@ public class CommentController {
 
     // to update a comment
     @PutMapping("/{commentId}")
-    public ResponseEntity<EntityModel<Comment>> updateComment(@PathVariable Long commentId,
+    public ResponseEntity<EntityModel<Comment>> updateComment(@Valid @PathVariable Long commentId,
             @RequestBody Comment updatedComment) throws BadRequestException {
         Optional<Comment> optionalComment = commentRepository.findById(commentId);
         if (optionalComment.isEmpty()) {
