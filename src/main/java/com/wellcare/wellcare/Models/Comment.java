@@ -3,9 +3,7 @@ package com.wellcare.wellcare.Models;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,6 +16,10 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Entity
@@ -29,6 +31,7 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
+    @Pattern(regexp="(https?://.*\\.(?:png|jpg|gif|bmp|jpeg|mp4))", message="Attachment must be a valid photo or video URL")
     private String attachment;
 
     @ManyToOne
@@ -38,12 +41,15 @@ public class Comment {
     private User user;
 
     private long noOfLikes;
+    
+    @Size(max = 500, message = "Content length must be less than or equal to 500 characters")
     private String content;
 
     @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JoinTable(name = "comment_likes", joinColumns = @JoinColumn(name = "comment_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
     @JsonIgnoreProperties({ "firstName", "lastName", "password", "email", "mobile", "bio", "gender", "image", "role",
             "follower", "following", "savedPost" })
+
     private Set<User> commentLikes = new HashSet<>();
 
     @Column(name = "created_at", nullable = false)
@@ -54,6 +60,17 @@ public class Comment {
     @JsonIgnoreProperties({ "comments", "likes", "noOfLikes", "createdAt", "attachment", "noOfComments",
             "location" })
     private Post post;
+
+    @AssertTrue(message = "Either attachment or content must be provided")
+    public boolean isEitherAttachmentOrContentValid() {
+        if (content == null || content.isBlank()) {
+            return attachment != null && !attachment.isBlank();
+        } else {
+            return true;
+        }
+    }
+    
+   
 
     public Comment() {
     }
