@@ -20,6 +20,7 @@ import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
@@ -44,7 +45,7 @@ public class UserController {
 
     @PutMapping("/profile/{userId}")
     @Transactional
-    public ResponseEntity<?> updateUserProfile(@PathVariable Long userId, @RequestBody User updatedUser) {
+    public ResponseEntity<?> updateUserProfile(@PathVariable Long userId, @Valid @RequestBody User updatedUser) {
         // Get the authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
@@ -58,8 +59,7 @@ public class UserController {
         if (existingUser.isPresent()) {
             User user = existingUser.get();
 
-            user.setFirstName(updatedUser.getFirstName());
-            user.setLastName(updatedUser.getLastName());
+            user.setName(updatedUser.getName());
             user.setEmail(updatedUser.getEmail());
             user.setMobile(updatedUser.getMobile());
             user.setBio(updatedUser.getBio());
@@ -76,7 +76,7 @@ public class UserController {
 
     @PutMapping("/profile/{userId}/password")
     @Transactional
-    public ResponseEntity<?> updateUserPassword(@PathVariable Long userId, @RequestBody String newPassword) {
+    public ResponseEntity<?> updateUserPassword(@PathVariable Long userId, @Valid @RequestBody String newPassword) {
         // Get the authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
