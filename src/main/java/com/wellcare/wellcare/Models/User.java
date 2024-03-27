@@ -1,7 +1,6 @@
 package com.wellcare.wellcare.Models;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -18,8 +17,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.groups.Default;
 import lombok.Data;
 
 enum Gender {
@@ -36,16 +35,16 @@ public class User {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @NotNull
-    @Size(min=6, message = "Username should have at least 6 characters")
+    @NotNull(groups = { Create.class })
+    @Size(min = 6, message = "Username should have at least 6 characters")
     private String username;
 
     @NotNull
-    @Size(min=2, message="Name should have at least 2 characters")
+    @Size(min = 2, message = "Name should have at least 2 characters")
     private String name;
 
-    @NotNull
-    @Size(min=8, message="Password should have at least 8 characters")
+    @NotNull(groups = { Create.class })
+    @Size(min = 8, message = "Password should have at least 8 characters")
     private String password;
 
     @Email(message = "Please enter a valid email address")
@@ -86,13 +85,14 @@ public class User {
         this.role = role;
     }
 
- 
     @Override
     public String toString() {
-        return "User [id=" + id + ", username=" + username + ", name=" + name 
+        return "User [id=" + id + ", username=" + username + ", name=" + name
                 + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
                 + gender + ", image=" + image + ", follower=" + follower + ", following=" + following + ", savedPost="
                 + savedPost + "]";
     }
 
+    public interface Create extends Default {
+    }
 }
