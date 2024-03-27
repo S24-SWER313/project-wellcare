@@ -52,7 +52,7 @@ public class Post {
 
     private Integer noOfComments = 0;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.REMOVE)
     @JoinColumn(name = "user_id")
     @JsonIgnoreProperties({"firstName", "lastName","password", "email", "mobile", "bio", "gender", "image", "role", "follower", "following", "savedPost"})
     private User user;

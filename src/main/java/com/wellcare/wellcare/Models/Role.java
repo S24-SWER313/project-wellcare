@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Entity
@@ -20,6 +21,7 @@ public class Role {
   private Long id;
 
   // Adjust the type of 'name' to match the enum type 'ERole'
+  @NotNull(message = "Role name cannot be null")
   @Enumerated(EnumType.STRING)
   @Column(length = 20)
   private ERole name;
