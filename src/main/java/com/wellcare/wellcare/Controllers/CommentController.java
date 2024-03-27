@@ -115,31 +115,44 @@ public class CommentController {
 
     @Transactional
     @DeleteMapping("/{commentId}")
-    public ResponseEntity<MessageResponse> deleteComment(@PathVariable Long commentId) {
+    public ResponseEntity<?> deleteComment(@PathVariable Long commentId, HttpServletRequest request)
+            throws UserException, CommentException {
         try {
-            Optional<Comment> optionalComment = commentRepository.findById(commentId);
-            if (optionalComment.isEmpty()) {
-                throw new ResourceNotFoundException("Comment", commentId);
-            }
-            Comment comment = optionalComment.get();
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
+    
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
+    
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new UserException("User not found"));
+    
+            Comment comment = commentRepository.findById(commentId)
+                    .orElseThrow(() -> new CommentException("Comment not found"));
+    
+            if (comment.getUser().getId().equals(userId)) {
+                comment.getCommentLikes().clear();
 
-            Post post = comment.getPost();
-            if (post != null && post.getId().equals(comment.getPost().getId())) {
+                Post post = comment.getPost();
                 post.getComments().remove(comment);
                 post.setNoOfComments(post.getNoOfComments() - 1);
                 postRepository.save(post);
+    
+                commentRepository.deleteById(commentId);
+                
+                return ResponseEntity.ok(new MessageResponse("Comment deleted successfully!"));
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
             }
-
-            // Delete the comment
-            commentRepository.deleteById(commentId);
-
-            return ResponseEntity.ok(new MessageResponse("Comment deleted successfully"));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new MessageResponse("Failed to delete comment with ID: " + commentId));
+    
+        } catch (UserException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
+        } catch (CommentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("Comment not found!"));
         }
     }
+    
+    
 
     @Transactional
     @PutMapping("/like-switcher/{commentId}")

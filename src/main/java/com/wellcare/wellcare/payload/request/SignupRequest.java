@@ -23,9 +23,8 @@ public class SignupRequest {
     private String password;
 
     // New fields for first name and last name
-    private String firstName;
-    private String lastName;
-
+    private String name;
+  
     public String getUsername() {
         return username;
     }
@@ -59,20 +58,14 @@ public class SignupRequest {
     }
 
     // Getter and setter methods for first name
-    public String getFirstName() {
-        return firstName;
+    public String getName() {
+        return name;
     }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    // Getter and setter methods for last name
-    public String getLastName() {
-        return lastName;
-    }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
+  
 }

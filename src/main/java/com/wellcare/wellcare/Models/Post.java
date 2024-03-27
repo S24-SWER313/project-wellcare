@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -63,7 +62,7 @@ public class Post {
     private Integer noOfComments = 0;
 
     @NotNull
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.REMOVE)
     @JoinColumn(name = "user_id")
     @JsonIgnoreProperties({ "firstName", "lastName", "password", "email", "mobile", "bio", "gender", "image", "role",
             "follower", "following", "savedPost" })

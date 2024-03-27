@@ -15,6 +15,10 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.groups.Default;
 import lombok.Data;
 
 enum Gender {
@@ -30,11 +34,22 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
+
+    @NotNull(groups = { Create.class })
+    @Size(min = 6, message = "Username should have at least 6 characters")
     private String username;
-    private String firstName;
-    private String lastName;
+
+    @NotNull
+    @Size(min = 2, message = "Name should have at least 2 characters")
+    private String name;
+
+    @NotNull(groups = { Create.class })
+    @Size(min = 8, message = "Password should have at least 8 characters")
     private String password;
+
+    @Email(message = "Please enter a valid email address")
     private String email;
+
     private String mobile;
     private String bio;
     private Gender gender;
@@ -62,29 +77,22 @@ public class User {
         this.password = password;
     }
 
-    public User(String username, String firstName, String lastName, String password, String email, Role role) {
+    public User(String username, String name, String password, String email, Role role) {
         this.username = username;
-        this.firstName = firstName;
-        this.lastName = lastName;
+        this.name = name;
         this.password = password;
         this.email = email;
         this.role = role;
     }
 
-    // public void addSavedPost(Post post) {
-    // this.getSavedPost().add(post);
-    // }
-
-    // public void removeSavedPost(Post post) {
-    // this.getSavedPost().remove(post);
-    // }
-
     @Override
     public String toString() {
-        return "User [id=" + id + ", username=" + username + ", firstName=" + firstName + ", lastName=" + lastName
+        return "User [id=" + id + ", username=" + username + ", name=" + name
                 + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
                 + gender + ", image=" + image + ", follower=" + follower + ", following=" + following + ", savedPost="
                 + savedPost + "]";
     }
 
+    public interface Create extends Default {
+    }
 }
