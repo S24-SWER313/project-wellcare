@@ -14,28 +14,21 @@ import org.springframework.web.context.request.WebRequest;
 
 @ControllerAdvice
 public class GlobalExceptions {
-    
 
     @ExceptionHandler(UserException.class)
-    public ResponseEntity<ErrorDetails> UserExceptionHandler(UserException exc, WebRequest req){
+    public ResponseEntity<ErrorDetails> UserExceptionHandler(UserException exc, WebRequest req) {
         ErrorDetails error = new ErrorDetails(exc.getMessage(), req.getDescription(false), LocalDateTime.now());
         return new ResponseEntity<ErrorDetails>(error, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(PostException.class)
-    public ResponseEntity<ErrorDetails> PostExceptionHandler(PostException exc, WebRequest req){
+    public ResponseEntity<ErrorDetails> PostExceptionHandler(PostException exc, WebRequest req) {
         ErrorDetails error = new ErrorDetails(exc.getMessage(), req.getDescription(false), LocalDateTime.now());
         return new ResponseEntity<ErrorDetails>(error, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(CommentException.class)
-    public ResponseEntity<ErrorDetails> CommentExceptionHandler(CommentException exc, WebRequest req){
-        ErrorDetails error = new ErrorDetails(exc.getMessage(), req.getDescription(false), LocalDateTime.now());
-        return new ResponseEntity<ErrorDetails>(error, HttpStatus.BAD_REQUEST);
-    }
-
-    @ExceptionHandler(StoryException.class)
-    public ResponseEntity<ErrorDetails> StoryExceptionHandler(StoryException exc, WebRequest req){
+    public ResponseEntity<ErrorDetails> CommentExceptionHandler(CommentException exc, WebRequest req) {
         ErrorDetails error = new ErrorDetails(exc.getMessage(), req.getDescription(false), LocalDateTime.now());
         return new ResponseEntity<ErrorDetails>(error, HttpStatus.BAD_REQUEST);
     }
@@ -50,20 +43,21 @@ public class GlobalExceptions {
             errorMessages.add(fieldName + ": " + errorMessage);
         });
 
-        ErrorDetails errorResponse = new ErrorDetails("Validation Error", errorMessages.toString(), LocalDateTime.now());
+        ErrorDetails errorResponse = new ErrorDetails("Validation Error", errorMessages.toString(),
+                LocalDateTime.now());
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorDetails> otherExceptionHandler(Exception exc, WebRequest req){
+    public ResponseEntity<ErrorDetails> otherExceptionHandler(Exception exc, WebRequest req) {
         ErrorDetails error = new ErrorDetails(exc.getMessage(), req.getDescription(false), LocalDateTime.now());
         return new ResponseEntity<ErrorDetails>(error, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-  public ResponseEntity<ErrorDetails> handleResourceNotFound(ResourceNotFoundException ex, WebRequest req) {
-    ErrorDetails error = new ErrorDetails(ex.getMessage(), req.getDescription(false), LocalDateTime.now());
-    return new ResponseEntity<>(error, HttpStatus.NOT_FOUND); // Use specific status code
-  }
+    public ResponseEntity<ErrorDetails> handleResourceNotFound(ResourceNotFoundException ex, WebRequest req) {
+        ErrorDetails error = new ErrorDetails(ex.getMessage(), req.getDescription(false), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND); // Use specific status code
+    }
 }
