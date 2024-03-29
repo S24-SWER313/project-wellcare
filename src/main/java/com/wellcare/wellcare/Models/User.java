@@ -53,6 +53,11 @@ public class User {
     private Gender gender;
 
     private String image;
+
+    private String attachment;
+    private String degree;
+    private String specialty;
+
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
@@ -81,6 +86,22 @@ public class User {
         this.name = name;
         this.password = password;
         this.email = email;
+        this.role = role;
+    }
+
+    public User(
+            String username,
+            String name,
+            String password,
+            String email, String attachment, String degree,
+            String specialty, Role role) {
+        this.username = username;
+        this.name = name;
+        this.password = password;
+        this.email = email;
+        this.attachment = attachment;
+        this.degree = degree;
+        this.specialty = specialty;
         this.role = role;
     }
 

@@ -26,11 +26,39 @@ public class SignupRequest {
 
     // New fields for first name and last name
     private String name;
-    
+
     private Gender gender;
+
+    private String degree;
+    private String specialty;
+    private String attachment;
 
     public String getUsername() {
         return username;
+    }
+
+    public String getDegree() {
+        return degree;
+    }
+
+    public void setDegree(String degree) {
+        this.degree = degree;
+    }
+
+    public String getSpecialty() {
+        return specialty;
+    }
+
+    public void setSpecialty(String specialty) {
+        this.specialty = specialty;
+    }
+
+    public String getAttachment() {
+        return attachment;
+    }
+
+    public void setAttachment(String attachment) {
+        this.attachment = attachment;
     }
 
     public void setUsername(String username) {
