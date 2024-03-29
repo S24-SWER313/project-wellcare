@@ -228,48 +228,48 @@ public class PostController {
     }
 
     @Transactional
-    @PutMapping("/like-switcher/{postId}")
-    public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
-            throws UserException, PostException {
+@PutMapping("/like-switcher/{postId}")
+public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
+        throws UserException, PostException {
 
-        try {
-            // Extract the JWT token from the request
-            String jwtToken = authTokenFilter.parseJwt(request);
-            System.out.println("Extracted JWT token: " + jwtToken);
+    try {
+        // Extract the JWT token from the request
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
 
-            // Parse the JWT token to extract the userId
-            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-            System.out.println("Extracted userId: " + userId);
-            Optional<User> optionalUser = userRepository.findById(userId);
-            User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
+        // Parse the JWT token to extract the userId
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+        
+        Optional<User> optionalUser = userRepository.findById(userId);
+        User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
 
-            Optional<Post> optionalPost = postRepository.findByIdWithLikesAndComments(postId);
-            if (optionalPost.isEmpty()) {
+        Optional<Post> optionalPost = postRepository.findById(postId);
+        if (optionalPost.isEmpty()) {
             throw new PostException("Post not found");
-            }
-            
-            Post post = optionalPost.get();
-            System.out.println("Retrieved post: " + post);
-            user = entityManager.merge(user);
-
-            // Initialize the likes collection
-            post.getLikes().size(); // Force initialization
-            post.getComments().size();
-            if (post.getLikes().contains(user)) {
-                post.getLikes().remove(user);
-                post.setNoOfLikes(post.getNoOfLikes() - 1);
-            } else {
-                post.getLikes().add(user);
-                post.setNoOfLikes(post.getNoOfLikes() + 1);
-            }
-
-            Post likedPost = postRepository.save(post);
-            return ResponseEntity.ok(postModelAssembler.toModel(likedPost));
-
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
         }
+        
+        Post post = optionalPost.get();
+
+        boolean hasLiked = post.getLikes().contains(user);
+
+        if (hasLiked) {
+            post.getLikes().remove(user);
+            post.setNoOfLikes(post.getNoOfLikes() - 1);
+        } else {
+            post.getLikes().add(user);
+            post.setNoOfLikes(post.getNoOfLikes() + 1);
+        }
+
+        Post likedPost = postRepository.save(post);
+        EntityModel<Post> postModel = postModelAssembler.toModel(likedPost);
+        return new ResponseEntity<>(postModel, HttpStatus.OK);
+    } catch (Exception ex) {
+        logger.error("Error toggling like on post", ex);
+        throw new PostException("Error toggling like on post: " + ex.getMessage());
     }
+}
+
 
     @Transactional
     @PutMapping("/save-switcher/{postId}")
@@ -289,7 +289,7 @@ public class PostController {
                     .orElseThrow(() -> new UserException("User not found"));
 
             // Retrieve the post entity or throw exception if not found
-            Post post = postRepository.findByIdWithLikesAndComments(postId)
+            Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new PostException("Post not found"));
 
             boolean isSaved = user.getSavedPost().contains(post);
