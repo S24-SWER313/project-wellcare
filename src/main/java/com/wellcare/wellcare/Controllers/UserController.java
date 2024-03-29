@@ -98,6 +98,52 @@ public class UserController {
         }
     }
 
+    // @PreAuthorize("hasRole('DOCTOR')")
+    @PutMapping("/profile/{userId}/doctor")
+    @Transactional
+    public ResponseEntity<?> updateDoctorProfile(@PathVariable Long userId,
+            @RequestBody Map<String, String> doctorData) {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+        logger.info("Authorities: {}", userDetails.getAuthorities());
+
+        if (!userDetails.getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("You are not authorized to update this profile");
+        }
+
+        if (!userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("DOCTOR"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("You are not authorized to update doctor-specific data");
+        }
+
+        Optional<User> existingUser = userRepository.findById(userId);
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+
+            String specialty = doctorData.get("specialty");
+            String degree = doctorData.get("degree");
+            String attachment = doctorData.get("attachment");
+
+            if (specialty != null) {
+                user.setSpecialty(specialty);
+            }
+            if (degree != null) {
+                user.setDegree(degree);
+            }
+            if (attachment != null) {
+                user.setAttachment(attachment);
+            }
+            userRepository.save(user);
+
+            return ResponseEntity.ok().body("Doctor profile updated successfully");
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+    }
+
     @PutMapping("/profile/{userId}/password")
     @Transactional
     public ResponseEntity<?> updateUserPassword(@PathVariable Long userId,
