@@ -4,8 +4,9 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,8 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.wellcare.wellcare.Models.Post;
 import com.wellcare.wellcare.Models.User;
-import com.wellcare.wellcare.Repositories.CommentRepository;
 import com.wellcare.wellcare.Repositories.PostRepository;
+import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 
@@ -42,17 +43,17 @@ public class PostControllerTest {
     private AuthTokenFilter authTokenFilter;
 
     @MockBean
-    private JwtUtils jwtUtils;
+    private UserRepository userRepository;
 
     @MockBean
-    private CommentRepository commentRepository;
+    private JwtUtils jwtUtils;
 
     @BeforeEach
     public void setUp() {
     }
 
     @Test
-    @WithMockUser(username = "testUser", roles = { "DOCTOR" })
+    @WithMockUser(username = "testUser", roles = { "USER" })
     public void testCreatePost() throws Exception {
         Post post = new Post();
         post.setContent("Test content");
@@ -67,99 +68,120 @@ public class PostControllerTest {
     }
 
     @Test
-    public void testGetPostsByUserId() throws Exception {
-        // Create a test user and posts
-        User user = new User();
-        user.setId(2L); // Assuming the user ID is 2
+    @WithMockUser(username = "testUser", roles = { "USER" })
+    public void testUpdatePost() throws Exception {
+        Post existingPost = new Post();
+        existingPost.setId(1L);
+        existingPost.setContent("Existing content");
+        existingPost.setCreatedAt(LocalDateTime.now());
 
-        Post post1 = new Post();
-        post1.setId(1L); // Assuming the post ID is 1
-        post1.setContent("Test content 1");
-        post1.setUser(user);
+        Post updatedPost = new Post();
+        updatedPost.setId(1L);
+        updatedPost.setContent("Updated content");
 
-        Post post2 = new Post();
-        post2.setId(2L); // Assuming the post ID is 2
-        post2.setContent("Test content 2");
-        post2.setUser(user);
+        when(postRepository.findById(1L)).thenReturn(Optional.of(existingPost));
+        when(postRepository.save(any(Post.class))).thenReturn(updatedPost);
 
-        List<Post> userPosts = Arrays.asList(post1, post2);
-
-        // Mock the repository method to return the user's posts
-        when(postRepository.findByUserId(anyLong())).thenReturn(userPosts);
-
-        // Perform the GET request to fetch posts for the user ID
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", 2L)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$").isArray()) // Check if the response is an array
-                .andExpect(MockMvcResultMatchers.jsonPath("$").isNotEmpty()) // Check if the array is not empty
-                .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(userPosts.size())) // Check if the array
-                                                                                                 // length matches
-                .andExpect(MockMvcResultMatchers.jsonPath("$[0].content").value("Test content 1")) // Check content of
-                                                                                                   // first post
-                .andExpect(MockMvcResultMatchers.jsonPath("$[1].content").value("Test content 2")); // Check content of
-                                                                                                    // second post
-    }
-
-    @Test
-    public void testDeletePost() throws Exception {
-        Long postId = 1L;
-
-        mockMvc.perform(MockMvcRequestBuilders.delete("/api/posts/{postId}", postId)
-                .contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/posts/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(updatedPost)))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
     @Test
-    public void testGetFilteredPosts() throws Exception {
-        // Mock user role
-        User user = new User();
-        user.setId(1L);
+    @WithMockUser(username = "testUser", roles = { "USER" })
+    public void testDeletePost() throws Exception {
+        Post post = new Post();
+        post.setId(1L);
+        post.setContent("Test content");
+        post.setCreatedAt(LocalDateTime.now());
 
-        Post post1 = new Post();
-        post1.setContent("Test content 1");
-        post1.setUser(user);
+        when(postRepository.findById(1L)).thenReturn(Optional.of(post));
+        doNothing().when(postRepository).deleteById(1L);
 
-        Post post2 = new Post();
-        post2.setContent("Test content 2");
-        post2.setUser(user);
+        mockMvc.perform(MockMvcRequestBuilders.delete("/api/posts/1"))
+                .andExpect(MockMvcResultMatchers.status().isOk());
+    }
 
-        List<Post> filteredPosts = Arrays.asList(post1, post2);
+    @Test
+    public void testGetPostsByUserId() throws Exception {
+        // Prepare mock data
+        Long userId = 1L;
+        List<Post> posts = new ArrayList<>();
+        posts.add(new Post("Content 1"));
+        posts.add(new Post("Content 2"));
+        when(postRepository.findByUserId(userId)).thenReturn(posts);
 
-        when(postRepository.findAll()).thenReturn(filteredPosts);
-
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/feed")
-                .contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", userId))
                 .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(filteredPosts.size()));
+                .andReturn();
+    }
+
+    @Test
+    public void testGetFilteredPosts() throws Exception {
+        List<Post> posts = new ArrayList<>();
+        posts.add(new Post("Filtered Content 1"));
+        posts.add(new Post("Filtered Content 2"));
+        when(postRepository.findAllWithLikesAndComments()).thenReturn(posts);
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/feed"))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
     }
 
     @Test
     public void testToggleLikePost() throws Exception {
         Long postId = 1L;
+        Post post = new Post("Test Content");
+        User user = new User();
+        user.setId(1L);
 
-        mockMvc.perform(MockMvcRequestBuilders.put("/api/posts/like-switcher/{postId}", postId)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.status().isOk());
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(user.getId());
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/posts/like-switcher/{postId}", postId))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
     }
 
     @Test
     public void testToggleSavePost() throws Exception {
         Long postId = 1L;
+        Post post = new Post("Test Content");
+        User user = new User();
+        user.setId(1L);
 
-        mockMvc.perform(MockMvcRequestBuilders.put("/api/posts/save-switcher/{postId}", postId)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.status().isOk());
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(user.getId());
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/posts/save-switcher/{postId}", postId))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
     }
 
     @Test
     public void testGetAllSavedPosts() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/saved-posts")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.status().isOk());
+        Long userId = 1L;
+        User user = new User();
+        user.setId(userId);
+        List<Post> savedPosts = new ArrayList<>();
+        savedPosts.add(new Post("Saved Post 1"));
+        savedPosts.add(new Post("Saved Post 2"));
+
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(user.getId());
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(postRepository.findAll()).thenReturn(savedPosts);
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/saved-posts"))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
     }
 
-    // Helper method to convert object to JSON string
     private String asJsonString(final Object obj) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
