@@ -72,7 +72,7 @@ public class AuthController {
         // Save the Role object before setting it to the User
         Role savedRole = roleRepository.save(userRole);
         user.setRole(savedRole);
-
+        user.setGender(signUpRequest.getGender());
         userRepository.save(user);
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));

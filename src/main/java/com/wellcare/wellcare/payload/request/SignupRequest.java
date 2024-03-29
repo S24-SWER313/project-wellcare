@@ -1,5 +1,7 @@
 package com.wellcare.wellcare.payload.request;
 
+import com.wellcare.wellcare.Models.Gender;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -24,7 +26,9 @@ public class SignupRequest {
 
     // New fields for first name and last name
     private String name;
-  
+    
+    private Gender gender;
+
     public String getUsername() {
         return username;
     }
@@ -66,6 +70,11 @@ public class SignupRequest {
         this.name = name;
     }
 
+    public Gender getGender() {
+        return gender;
+    }
 
-  
+    public void setGender(Gender gender) {
+        this.gender = gender;
+    }
 }

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Set;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,11 +22,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.groups.Default;
 import lombok.Data;
-
-enum Gender {
-    FEMALE,
-    MALE,
-}
 
 @Entity
 @Data
@@ -52,7 +49,9 @@ public class User {
 
     private String mobile;
     private String bio;
+    @Enumerated(EnumType.STRING)
     private Gender gender;
+
     private String image;
     @ManyToOne
     @JoinColumn(name = "role_id")
