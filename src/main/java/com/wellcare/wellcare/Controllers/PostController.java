@@ -9,8 +9,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.pulsar.PulsarProperties.Authentication;
-import org.springframework.hateoas.CollectionModel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.data.web.PagedResourcesAssembler;
 import com.wellcare.wellcare.Assemblers.PostModelAssembler;
 import com.wellcare.wellcare.Exceptions.PostException;
 import com.wellcare.wellcare.Exceptions.ResourceNotFoundException;
@@ -59,6 +62,9 @@ public class PostController {
     @Autowired
     AuthTokenFilter authTokenFilter;
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
+
+    @Autowired
+    private PagedResourcesAssembler<Post> pagedResourcesAssembler;
 
     @Autowired
     private EntityManager entityManager;
@@ -122,18 +128,16 @@ public class PostController {
         return new ResponseEntity<>(postModel, HttpStatus.OK);
     }
 
-    // to get all the posts of specific user
     @GetMapping("/{userId}")
-    public ResponseEntity<List<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId) {
-        List<Post> userposts = postRepository.findByUserId(userId);
+    public ResponseEntity<PagedModel<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId, Pageable pageable) {
+        Page<Post> userPosts = postRepository.findByUserId(userId, pageable);
 
-        List<EntityModel<Post>> postModels = userposts.stream()
-                .map(postModelAssembler::toModel)
-                .collect(Collectors.toList());
+        PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(userPosts, postModelAssembler);
+        
 
-        return ResponseEntity.ok(postModels);
+        return new ResponseEntity<>(pagedModel, HttpStatus.OK);
+
     }
-
     @Transactional
     @DeleteMapping("/{postId}")
     public ResponseEntity<MessageResponse> deletePost(@PathVariable Long postId) {
@@ -153,12 +157,9 @@ public class PostController {
                     .body(new MessageResponse("Failed to delete post with ID: " + postId));
         }
     }
-
     @GetMapping("/feed")
-    public ResponseEntity<List<EntityModel<Post>>> getFilteredPosts(
-            @RequestParam(required = false) ERole role) {
-
-        List<Post> posts;
+    public ResponseEntity<PagedModel<EntityModel<Post>>> getFilteredPosts(@RequestParam(required = false) ERole role, Pageable pageable) {
+        Page<Post> posts;
         if (role != null) {
             List<User> usersByRole = userRepository.findAllUsersByRole(role);
             if (usersByRole.isEmpty()) {
@@ -166,19 +167,21 @@ public class PostController {
             }
 
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
-            posts = postRepository.findAllPostsByUserIds(userIds)
-                    .orElseThrow(() -> new ResourceNotFoundException("Posts", null,
-                            new Throwable("No posts found for the given role")));
+            posts = postRepository.findAllPostsByUserIds(userIds, pageable);
+
+            if (posts.isEmpty()) {
+                throw new ResourceNotFoundException("Posts", null, new Throwable("No posts found for the given role"));
+            }
         } else {
-            posts = postRepository.findAll();
+            posts = postRepository.findAllWithLikesAndComments(pageable);
         }
 
-        List<EntityModel<Post>> postModels = posts.stream()
-                .map(postModelAssembler::toModel)
-                .collect(Collectors.toList());
+        PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(posts, postModelAssembler);
+        
 
-        return ResponseEntity.ok(postModels);
+        return new ResponseEntity<>(pagedModel, HttpStatus.OK);
     }
+    
 
     @Transactional
     @PutMapping("/like-switcher/{postId}")
@@ -260,11 +263,10 @@ public class PostController {
         }
     }
 
+
     @Transactional
     @GetMapping("/saved-posts")
-    public ResponseEntity<CollectionModel<EntityModel<Post>>> getAllSavedPosts(HttpServletRequest request)
-            throws UserException {
-
+    public ResponseEntity<PagedModel<EntityModel<Post>>> getAllSavedPosts(HttpServletRequest request, Pageable pageable) throws UserException {
         try {
             String jwtToken = authTokenFilter.parseJwt(request);
             System.out.println("Extracted JWT token: " + jwtToken);
@@ -279,7 +281,11 @@ public class PostController {
 
             List<Post> savedPosts = user.getSavedPost();
 
-            return ResponseEntity.ok(postModelAssembler.toCollectionModel(savedPosts));
+            Page<Post> savedPostsPage = new PageImpl<>(savedPosts, pageable, savedPosts.size());
+
+            PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(savedPostsPage, postModelAssembler);
+
+            return ResponseEntity.ok(pagedModel);
         } catch (ResourceNotFoundException ex) {
             ex.printStackTrace();
             return ResponseEntity.notFound().build();
