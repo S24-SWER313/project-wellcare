@@ -1,6 +1,7 @@
 package com.wellcare.wellcare.Controllers;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.wellcare.wellcare.Assemblers.PostModelAssembler;
 import com.wellcare.wellcare.Exceptions.PostException;
@@ -36,6 +39,7 @@ import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
 import io.jsonwebtoken.JwtException;
@@ -58,33 +62,53 @@ public class PostController {
     JwtUtils jwtUtils;
     @Autowired
     AuthTokenFilter authTokenFilter;
+
+    @Autowired
+    StorageService storageService;
+
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
 
     @Autowired
     private EntityManager entityManager;
 
-    @PostMapping("/new-post")
+    @Transactional
+   @PostMapping("/new-post")
     public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
-            @Valid @RequestBody Post post,
+            @Valid @ModelAttribute Post post, 
+            @RequestParam("file") MultipartFile[] files,
             Authentication authentication) throws UserException {
         try {
             // Extract the JWT token from the request
             String jwtToken = authTokenFilter.parseJwt(request);
             System.out.println("Extracted JWT token: " + jwtToken);
-
+    
             // Parse the JWT token to extract the userId
             Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
             System.out.println("Extracted userId: " + userId);
-
+    
             // Use the extracted userId to get the User object
             Optional<User> existingUserOptional = userRepository.findById(userId);
             User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
-
+    
             post.setUser(user); // Set the User for the Post
             post.setCreatedAt(LocalDateTime.now());
-            Post createdPost = postRepository.save(post);
-            EntityModel<Post> postModel = postModelAssembler.toModel(createdPost);
+    
+            List<String> attachmentUrls = new ArrayList<>();
+            for (MultipartFile file : files) {
+                System.out.println("Received file: " + file.getOriginalFilename());
+                storageService.store(file);
+                String filename = file.getOriginalFilename();
+                String url = "http://localhost:8080/files/" + filename;
+                attachmentUrls.add(url);
 
+            }
+            
+            post.setAttachment(attachmentUrls);  // Set attachments to the post
+    
+            Post createdPost = postRepository.save(post);
+    
+            EntityModel<Post> postModel = postModelAssembler.toModel(createdPost);
+    
             // Pass the userId to the linkTo method
             return new ResponseEntity<>(postModel, HttpStatus.CREATED);
         } catch (Exception ex) {
@@ -97,30 +121,53 @@ public class PostController {
             }
         }
     }
+    
 
+    @Transactional
     @PutMapping("/{postId}")
-    public ResponseEntity<EntityModel<Post>> updatePost(@RequestBody Post updatedPost, @PathVariable Long postId) {
-        Optional<Post> existingPostOptional = postRepository.findById(postId);
-        if (existingPostOptional.isEmpty()) {
-            throw new ResourceNotFoundException("Post", postId);
+    public ResponseEntity<EntityModel<Post>> updatePost(@ModelAttribute Post updatedPost, 
+            @PathVariable Long postId,
+            @RequestParam(value = "file", required = false) MultipartFile[] files) throws PostException {
+        try {
+            Optional<Post> existingPostOptional = postRepository.findById(postId);
+            if (existingPostOptional.isEmpty()) {
+                throw new ResourceNotFoundException("Post", postId);
+            }
+            Post existingPost = existingPostOptional.get();
+    
+            entityManager.detach(existingPost);
+    
+            // Update only the fields that are not null in the updatedPost
+            if (updatedPost.getContent() != null) {
+                existingPost.setContent(updatedPost.getContent());
+            }
+            if (updatedPost.getLocation() != null) {
+                existingPost.setLocation(updatedPost.getLocation());
+            }
+    
+            List<String> attachmentUrls = new ArrayList<>();
+            
+            if (files != null && files.length > 0) {
+                for (MultipartFile file : files) {
+                    storageService.store(file);
+                String filename = file.getOriginalFilename();
+                String url = "http://localhost:8080/files/" + filename;
+                attachmentUrls.add(url);
+                }
+            }
+    
+            existingPost.setAttachment(attachmentUrls);  // Set attachments to the existing post
+    
+            Post savedPost = postRepository.save(existingPost);
+    
+            EntityModel<Post> postModel = postModelAssembler.toModel(savedPost);
+            return new ResponseEntity<>(postModel, HttpStatus.OK);
+        } catch (Exception ex) {
+            logger.error("Error updating post", ex);
+            throw new PostException("Error updating post: " + ex.getMessage());
         }
-        Post existingPost = existingPostOptional.get();
-
-        // Update only the fields that are not null in the updatedPost
-        if (updatedPost.getContent() != null) {
-            existingPost.setContent(updatedPost.getContent());
-        }
-        if (updatedPost.getLocation() != null) {
-            existingPost.setLocation(updatedPost.getLocation());
-        }
-        if (updatedPost.getAttachment() != null) {
-            existingPost.setAttachment(updatedPost.getAttachment());
-        }
-
-        Post savedPost = postRepository.save(existingPost);
-        EntityModel<Post> postModel = postModelAssembler.toModel(savedPost);
-        return new ResponseEntity<>(postModel, HttpStatus.OK);
     }
+    
 
     // to get all the posts of specific user
     @GetMapping("/{userId}")
@@ -166,11 +213,11 @@ public class PostController {
             }
 
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
-            posts = postRepository.findAllPostsByUserIds(userIds)
+            posts = postRepository.findAllPostsByRole(role)
                     .orElseThrow(() -> new ResourceNotFoundException("Posts", null,
                             new Throwable("No posts found for the given role")));
         } else {
-            posts = postRepository.findAll();
+            posts = postRepository.findAllWithLikesAndComments();
         }
 
         List<EntityModel<Post>> postModels = posts.stream()
@@ -181,44 +228,48 @@ public class PostController {
     }
 
     @Transactional
-    @PutMapping("/like-switcher/{postId}")
-    public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
-            throws UserException, PostException {
+@PutMapping("/like-switcher/{postId}")
+public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
+        throws UserException, PostException {
 
-        try {
-            // Extract the JWT token from the request
-            String jwtToken = authTokenFilter.parseJwt(request);
-            System.out.println("Extracted JWT token: " + jwtToken);
+    try {
+        // Extract the JWT token from the request
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
 
-            // Parse the JWT token to extract the userId
-            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-            System.out.println("Extracted userId: " + userId);
-            Optional<User> optionalUser = userRepository.findById(userId);
-            User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
+        // Parse the JWT token to extract the userId
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+        
+        Optional<User> optionalUser = userRepository.findById(userId);
+        User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
 
-            Optional<Post> optionalPost = postRepository.findById(postId);
-            Post post = optionalPost.orElseThrow(() -> new PostException("Post not found"));
-
-            user = entityManager.merge(user);
-
-            // Initialize the likes collection
-            post.getLikes().size(); // Force initialization
-            post.getComments().size();
-            if (post.getLikes().contains(user)) {
-                post.getLikes().remove(user);
-                post.setNoOfLikes(post.getNoOfLikes() - 1);
-            } else {
-                post.getLikes().add(user);
-                post.setNoOfLikes(post.getNoOfLikes() + 1);
-            }
-
-            Post likedPost = postRepository.save(post);
-            return ResponseEntity.ok(postModelAssembler.toModel(likedPost));
-
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
+        Optional<Post> optionalPost = postRepository.findById(postId);
+        if (optionalPost.isEmpty()) {
+            throw new PostException("Post not found");
         }
+        
+        Post post = optionalPost.get();
+
+        boolean hasLiked = post.getLikes().contains(user);
+
+        if (hasLiked) {
+            post.getLikes().remove(user);
+            post.setNoOfLikes(post.getNoOfLikes() - 1);
+        } else {
+            post.getLikes().add(user);
+            post.setNoOfLikes(post.getNoOfLikes() + 1);
+        }
+
+        Post likedPost = postRepository.save(post);
+        EntityModel<Post> postModel = postModelAssembler.toModel(likedPost);
+        return new ResponseEntity<>(postModel, HttpStatus.OK);
+    } catch (Exception ex) {
+        logger.error("Error toggling like on post", ex);
+        throw new PostException("Error toggling like on post: " + ex.getMessage());
     }
+}
+
 
     @Transactional
     @PutMapping("/save-switcher/{postId}")
