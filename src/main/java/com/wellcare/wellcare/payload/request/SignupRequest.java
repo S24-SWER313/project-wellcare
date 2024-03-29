@@ -1,5 +1,7 @@
 package com.wellcare.wellcare.payload.request;
 
+import com.wellcare.wellcare.Models.Gender;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -24,9 +26,39 @@ public class SignupRequest {
 
     // New fields for first name and last name
     private String name;
-  
+
+    private Gender gender;
+
+    private String degree;
+    private String specialty;
+    private String attachment;
+
     public String getUsername() {
         return username;
+    }
+
+    public String getDegree() {
+        return degree;
+    }
+
+    public void setDegree(String degree) {
+        this.degree = degree;
+    }
+
+    public String getSpecialty() {
+        return specialty;
+    }
+
+    public void setSpecialty(String specialty) {
+        this.specialty = specialty;
+    }
+
+    public String getAttachment() {
+        return attachment;
+    }
+
+    public void setAttachment(String attachment) {
+        this.attachment = attachment;
     }
 
     public void setUsername(String username) {
@@ -66,6 +98,11 @@ public class SignupRequest {
         this.name = name;
     }
 
+    public Gender getGender() {
+        return gender;
+    }
 
-  
+    public void setGender(Gender gender) {
+        this.gender = gender;
+    }
 }

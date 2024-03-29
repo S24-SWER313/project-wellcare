@@ -65,6 +65,14 @@ public class AuthController {
         Role userRole;
         if (signUpRequest.getRole() != null && signUpRequest.getRole().equals("DOCTOR")) {
             userRole = new Role(ERole.DOCTOR);
+            if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null
+                    || signUpRequest.getAttachment() == null) {
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Error: Doctor specialty, degree, and attachment are required!"));
+            }
+            user.setDegree(signUpRequest.getDegree());
+            user.setSpecialty(signUpRequest.getSpecialty());
+            user.setAttachment(signUpRequest.getAttachment());
         } else {
             userRole = new Role(ERole.PATIENT);
         }
@@ -72,7 +80,7 @@ public class AuthController {
         // Save the Role object before setting it to the User
         Role savedRole = roleRepository.save(userRole);
         user.setRole(savedRole);
-
+        user.setGender(signUpRequest.getGender());
         userRepository.save(user);
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
