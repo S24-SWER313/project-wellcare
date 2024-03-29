@@ -83,7 +83,7 @@ public class PostControllerTest {
 
         List<Post> userPosts = Arrays.asList(post1, post2);
 
-        when(postRepository.findByUserId(anyLong())).thenReturn(userPosts);
+        when(postRepository.findByUserIdWithAttachment(anyLong())).thenReturn(userPosts);
 
         // Perform the request and print the JSON response for debugging
         String jsonResponse = mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", 2L)

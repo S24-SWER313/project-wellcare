@@ -11,6 +11,7 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -28,6 +29,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Data;
 
 @Entity
@@ -51,7 +53,8 @@ public class Post {
     @Size(max = 255)
     private String content;
 
-    private List<String> attachment;
+    @OneToMany(mappedBy = "post", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Attachment> attachment = new ArrayList<>();
 
     @NotNull
     @Min(0)
@@ -90,10 +93,10 @@ public class Post {
         this.noOfComments = 0;
     }
 
-    public Post(String location, List<String> attachment) {
+    public Post(String location, List<Attachment> attachment) {
         this.createdAt = LocalDateTime.now();
         this.location = location;
-        this.attachment = new ArrayList<String>(attachment);
+        this.attachment = attachment;
         this.noOfLikes = 0;
         this.noOfComments = 0;
     }
