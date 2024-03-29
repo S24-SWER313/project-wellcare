@@ -68,6 +68,7 @@ public class PostControllerTest {
 
     @Test
     public void testGetPostsByUserId() throws Exception {
+        // Create a test user and posts
         User user = new User();
         user.setId(2L); // Assuming the user ID is 2
 
@@ -83,22 +84,21 @@ public class PostControllerTest {
 
         List<Post> userPosts = Arrays.asList(post1, post2);
 
+        // Mock the repository method to return the user's posts
         when(postRepository.findByUserId(anyLong())).thenReturn(userPosts);
 
-        // Perform the request and print the JSON response for debugging
-        String jsonResponse = mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", 2L)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        System.out.println("JSON Response: " + jsonResponse);
-
+        // Perform the GET request to fetch posts for the user ID
         mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$").isArray())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(userPosts.size()));
+                .andExpect(MockMvcResultMatchers.jsonPath("$").isArray()) // Check if the response is an array
+                .andExpect(MockMvcResultMatchers.jsonPath("$").isNotEmpty()) // Check if the array is not empty
+                .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(userPosts.size())) // Check if the array
+                                                                                                 // length matches
+                .andExpect(MockMvcResultMatchers.jsonPath("$[0].content").value("Test content 1")) // Check content of
+                                                                                                   // first post
+                .andExpect(MockMvcResultMatchers.jsonPath("$[1].content").value("Test content 2")); // Check content of
+                                                                                                    // second post
     }
 
     @Test
