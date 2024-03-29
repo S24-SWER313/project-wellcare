@@ -18,7 +18,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -53,8 +55,11 @@ public class Post {
     @Size(max = 255)
     private String content;
 
-    @OneToMany(mappedBy = "post", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Attachment> attachment = new ArrayList<>();
+    @ElementCollection
+    @CollectionTable(name = "post_attachment", 
+                     joinColumns = @JoinColumn(name = "post_id"))
+    @Column(name = "attachment_url")
+    private Set<String> attachment = new HashSet<>();
 
     @NotNull
     @Min(0)
@@ -93,7 +98,7 @@ public class Post {
         this.noOfComments = 0;
     }
 
-    public Post(String location, List<Attachment> attachment) {
+    public Post(String location, Set<String> attachment) {
         this.createdAt = LocalDateTime.now();
         this.location = location;
         this.attachment = attachment;

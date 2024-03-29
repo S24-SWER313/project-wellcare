@@ -2,8 +2,10 @@ package com.wellcare.wellcare.Controllers;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -33,11 +35,9 @@ import com.wellcare.wellcare.Assemblers.PostModelAssembler;
 import com.wellcare.wellcare.Exceptions.PostException;
 import com.wellcare.wellcare.Exceptions.ResourceNotFoundException;
 import com.wellcare.wellcare.Exceptions.UserException;
-import com.wellcare.wellcare.Models.Attachment;
 import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Post;
 import com.wellcare.wellcare.Models.User;
-import com.wellcare.wellcare.Repositories.AttachmentRepository;
 import com.wellcare.wellcare.Repositories.CommentRepository;
 import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
@@ -68,8 +68,6 @@ public class PostController {
     AuthTokenFilter authTokenFilter;
 
     @Autowired
-    AttachmentRepository attachmentRepository;
-    @Autowired
     StorageService storageService;
 
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
@@ -98,18 +96,16 @@ public class PostController {
             post.setUser(user); // Set the User for the Post
             post.setCreatedAt(LocalDateTime.now());
     
-            List<Attachment> attachments = new ArrayList<>();
+            Set<String> attachmentUrls = new HashSet<>();
             for (MultipartFile file : files) {
                 System.out.println("Received file: " + file.getOriginalFilename());
                 storageService.store(file);
                 String filename = file.getOriginalFilename();
                 String url = "http://localhost:8080/files/" + filename;
-                Attachment attachment = new Attachment(filename, url);
-                attachment.setPost(post);
-                attachments.add(attachment);
+                attachmentUrls.add(url);
             }
             
-            post.setAttachment(attachments);  // Set attachments to the post
+            post.setAttachment(attachmentUrls);  // Set attachments to the post
     
             Post createdPost = postRepository.save(post);
     
@@ -127,6 +123,7 @@ public class PostController {
             }
         }
     }
+    
     
 
     @Transactional
@@ -151,20 +148,18 @@ public class PostController {
                 existingPost.setLocation(updatedPost.getLocation());
             }
     
-            List<Attachment> attachments = new ArrayList<>();
+            Set<String> attachmentUrls = new HashSet<>();
             
             if (files != null && files.length > 0) {
                 for (MultipartFile file : files) {
                     storageService.store(file);
-                    String filename = file.getOriginalFilename();
-                    String url = "http://localhost:8080/files/" + filename;
-                    Attachment attachment = new Attachment(filename, url);
-                    attachment.setPost(existingPost);
-                    attachments.add(attachment);
+                String filename = file.getOriginalFilename();
+                String url = "http://localhost:8080/files/" + filename;
+                attachmentUrls.add(url);
                 }
             }
     
-            existingPost.setAttachment(attachments);  // Set attachments to the existing post
+            existingPost.setAttachment(attachmentUrls);  // Set attachments to the existing post
     
             Post savedPost = postRepository.save(existingPost);
     
@@ -180,7 +175,7 @@ public class PostController {
     // to get all the posts of specific user
     @GetMapping("/{userId}")
     public ResponseEntity<List<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId) {
-        List<Post> userposts = postRepository.findByUserIdWithAttachment(userId);
+        List<Post> userposts = postRepository.findByUserId(userId);
 
         List<EntityModel<Post>> postModels = userposts.stream()
                 .map(postModelAssembler::toModel)
@@ -221,11 +216,11 @@ public class PostController {
             }
 
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
-            posts = postRepository.findAllPostsByRoleWithAttachment(role)
+            posts = postRepository.findAllPostsByRole(role)
                     .orElseThrow(() -> new ResourceNotFoundException("Posts", null,
                             new Throwable("No posts found for the given role")));
         } else {
-            posts = postRepository.findAllWithLikesAndCommentsAndAttachment();
+            posts = postRepository.findAllWithLikesAndComments();
         }
 
         List<EntityModel<Post>> postModels = posts.stream()
@@ -235,25 +230,29 @@ public class PostController {
         return ResponseEntity.ok(postModels);
     }
 
-    @Transactional
-    @PutMapping("/like-switcher/{postId}")
-    public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
-            throws UserException, PostException {
+   @Transactional
+@PutMapping("/like-switcher/{postId}")
+public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
+        throws UserException, PostException {
 
-        try {
-            // Extract the JWT token from the request
-            String jwtToken = authTokenFilter.parseJwt(request);
-            System.out.println("Extracted JWT token: " + jwtToken);
+    try {
+        // Extract the JWT token from the request
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
 
-            // Parse the JWT token to extract the userId
-            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-            System.out.println("Extracted userId: " + userId);
-            Optional<User> optionalUser = userRepository.findById(userId);
-            User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
+        // Parse the JWT token to extract the userId
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+        
+        Optional<User> optionalUser = userRepository.findById(userId);
+        User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
 
-            Optional<Post> optionalPost = postRepository.findByIdWithLikesAndCommentsAndAttachment(postId);
-            Post post = optionalPost.orElseThrow(() -> new PostException("Post not found"));
+        Optional<Post> optionalPost = postRepository.findByIdWithLikesAndComments(postId);
 
+        if(optionalPost.isPresent()) {
+            Post post = optionalPost.get();
+            System.out.println("Found Post: " + post.getId());
+            
             user = entityManager.merge(user);
 
             // Initialize the likes collection
@@ -269,11 +268,17 @@ public class PostController {
 
             Post likedPost = postRepository.save(post);
             return ResponseEntity.ok(postModelAssembler.toModel(likedPost));
-
-        } catch (ResourceNotFoundException ex) {
-            return ResponseEntity.notFound().build();
+        } else {
+            System.out.println("Post not found with ID: " + postId);
+            throw new PostException("Post not found");
         }
+
+    } catch (Exception ex) {
+        logger.error("Error toggling like for post with ID {}", postId, ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+}
+
 
     @Transactional
     @PutMapping("/save-switcher/{postId}")
@@ -293,7 +298,7 @@ public class PostController {
                     .orElseThrow(() -> new UserException("User not found"));
 
             // Retrieve the post entity or throw exception if not found
-            Post post = postRepository.findByIdWithLikesAndCommentsAndAttachment(postId)
+            Post post = postRepository.findByIdWithLikesAndComments(postId)
                     .orElseThrow(() -> new PostException("Post not found"));
 
             boolean isSaved = user.getSavedPost().contains(post);
