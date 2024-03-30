@@ -55,9 +55,9 @@ public class AuthController {
     @Autowired
     StorageService storageService;
 
-
     @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@Valid @ModelAttribute SignupRequest signUpRequest, @RequestParam("file") MultipartFile file) {
+    @Transactional
+    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
         }
@@ -73,25 +73,13 @@ public class AuthController {
     
         Role userRole;
         if (signUpRequest.getRole() != null && signUpRequest.getRole().equals("DOCTOR")) {
-            userRole = new Role(ERole.DOCTOR);
-            if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null || file.isEmpty()) {
+            if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null) {
                 return ResponseEntity.badRequest()
                         .body(new MessageResponse("Error: Doctor specialty, degree, and attachment are required!"));
             }
-            
-            // File upload code
-            try {
-                System.out.println("Received file: " + file.getOriginalFilename());
-                storageService.store(file);
-                String filename = file.getOriginalFilename(); 
-                String url = "http://localhost:8080/files/" + filename;
-                user.setAttachment(url);
-            } catch (Exception e) {
-                return ResponseEntity.badRequest().body(new MessageResponse("Error uploading file!"));
-            }
-    
             user.setDegree(signUpRequest.getDegree());
             user.setSpecialty(signUpRequest.getSpecialty());
+            userRole = new Role(ERole.DOCTOR);
         } else {
             userRole = new Role(ERole.PATIENT);
         }
@@ -100,15 +88,13 @@ public class AuthController {
         Role savedRole = roleRepository.save(userRole);
         user.setRole(savedRole);
         user.setGender(signUpRequest.getGender());
+        
         userRepository.save(user);
     
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
     
 
-    
-
-    
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {

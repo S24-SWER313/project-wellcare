@@ -1,19 +1,12 @@
 package com.wellcare.wellcare.Models;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -32,8 +25,6 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.groups.Default;
 import lombok.Data;
 
-
-
 @Entity
 @Data
 @Table(name = "user")
@@ -47,7 +38,6 @@ public class User {
     @Size(min = 6, message = "Username should have at least 6 characters")
     private String username;
 
-    @NotNull
     @Size(min = 2, message = "Name should have at least 2 characters")
     private String name;
 
@@ -64,12 +54,11 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Gender gender;
     private String image;
-    @ManyToOne
+
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "role_id")
     private Role role;
-   
 
-    private String attachment;
     private String degree;
     private String specialty;
 
@@ -121,7 +110,6 @@ public class User {
                 + gender + ", image=" + image + ", role=" + role + ", savedPost="
                 + savedPost.size() + "]";
     }
-    
 
     public interface Create extends Default {
     }

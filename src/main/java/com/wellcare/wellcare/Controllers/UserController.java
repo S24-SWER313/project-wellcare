@@ -119,58 +119,68 @@ public class UserController {
      @PutMapping("/profile/{userId}/doctor")
      @Transactional
      public ResponseEntity<?> updateDoctorProfile(@PathVariable Long userId,
-     @RequestParam(value = "file", required = false) MultipartFile file,
-             @RequestBody Map<String, String> doctorData) {
- 
+                                                  @RequestParam(value = "file", required = false) MultipartFile file,
+                                                  @RequestBody Map<String, String> doctorData) {
+     
          Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
          UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
- 
+     
          logger.info("Authorities: {}", userDetails.getAuthorities());
- 
+     
          if (!userDetails.getId().equals(userId)) {
              return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                      .body("You are not authorized to update this profile");
          }
- 
+     
          if (!userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("DOCTOR"))) {
              return ResponseEntity.status(HttpStatus.FORBIDDEN)
                      .body("You are not authorized to update doctor-specific data");
          }
- 
+     
          Optional<User> existingUser = userRepository.findById(userId);
-         
+     
          if (existingUser.isPresent()) {
              User user = existingUser.get();
- 
+     
              String specialty = doctorData.get("specialty");
              String degree = doctorData.get("degree");
- 
+     
              if (specialty != null) {
                  user.setSpecialty(specialty);
              }
              if (degree != null) {
                  user.setDegree(degree);
              }
+             
+             // Check if the "name" key exists in the doctorData map before setting it to the user
+             if (doctorData.containsKey("name")) {
+                 String name = doctorData.get("name");
+                 if (name != null && !name.isEmpty()) {
+                     user.setName(name);
+                 }
+             }
+     
              if (file != null && !file.isEmpty()) {
-                try {
-                    storageService.store(file);
-                    String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
-                    user.setImage(imageUrl);
-                } catch (Exception e) {
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body("Failed to store the file: " + e.getMessage());
-                }
-            } else if (user.getImage() != null) {
-                user.setImage(user.getImage());
-            }
-
+                 try {
+                     storageService.store(file);
+                     String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
+                     user.setImage(imageUrl);
+                 } catch (Exception e) {
+                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                             .body("Failed to store the file: " + e.getMessage());
+                 }
+             } else if (user.getImage() != null) {
+                 user.setImage(user.getImage());
+             }
+     
              userRepository.save(user);
- 
+     
              return ResponseEntity.ok().body("Doctor profile updated successfully");
          } else {
              return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
          }
      }
+     
 
      
     @PutMapping("/profile/{userId}/password")
