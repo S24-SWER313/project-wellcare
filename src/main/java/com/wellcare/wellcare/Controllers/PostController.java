@@ -75,7 +75,7 @@ public class PostController {
    @PostMapping("/new-post")
     public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
             @Valid @ModelAttribute Post post, 
-            @RequestParam("file") MultipartFile[] files,
+            @RequestParam(value = "file", required = false) MultipartFile[] files,
             Authentication authentication) throws UserException {
         try {
             // Extract the JWT token from the request

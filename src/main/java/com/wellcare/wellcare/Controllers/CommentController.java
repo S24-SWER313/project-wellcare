@@ -1,6 +1,8 @@
 package com.wellcare.wellcare.Controllers;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -11,12 +13,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.wellcare.wellcare.Assemblers.CommentModelAssembler;
 import com.wellcare.wellcare.Exceptions.CommentException;
@@ -31,6 +36,7 @@ import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
 import jakarta.persistence.EntityManager;
@@ -60,8 +66,11 @@ public class CommentController {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    StorageService storageService;
+
     @PostMapping("/{postId}")
-    public ResponseEntity<EntityModel<Comment>> createComment(@Valid @RequestBody Comment comment, @PathVariable Long postId,
+    public ResponseEntity<EntityModel<Comment>> createComment( @Valid @ModelAttribute Comment comment, @RequestParam("file") MultipartFile file, @PathVariable Long postId,
             HttpServletRequest request) throws UserException, PostException {
 
         try {
@@ -80,6 +89,14 @@ public class CommentController {
             comment.setUser(user);
             comment.setCreatedAt(LocalDateTime.now());
 
+            if (file != null && !file.isEmpty()) {
+                System.out.println("Received file: " + file.getOriginalFilename());
+                storageService.store(file);
+                String filename = file.getOriginalFilename();
+                String url = "http://localhost:8080/files/" + filename;
+                comment.setAttachment(url);
+            }
+            
             comment.setPost(post);
 
             Comment createdComment = commentRepository.save(comment);
@@ -99,7 +116,7 @@ public class CommentController {
     // to update a comment
     @PutMapping("/{commentId}")
     public ResponseEntity<EntityModel<Comment>> updateComment(@Valid @PathVariable Long commentId,
-            @RequestBody Comment updatedComment) throws BadRequestException {
+            @ModelAttribute Comment updatedComment,  @RequestParam(value = "file", required = false) MultipartFile file) throws BadRequestException {
         Optional<Comment> optionalComment = commentRepository.findById(commentId);
         if (optionalComment.isEmpty()) {
             throw new ResourceNotFoundException("Comment", commentId);
@@ -108,8 +125,15 @@ public class CommentController {
         Comment existingComment = optionalComment.get();
 
         existingComment.setContent(updatedComment.getContent());
-        existingComment.setAttachment(updatedComment.getAttachment());
-        commentRepository.save(existingComment);
+        if (file != null && !file.isEmpty()) {
+            System.out.println("Received file: " + file.getOriginalFilename());
+            storageService.store(file);
+            String filename = file.getOriginalFilename();
+            String url = "http://localhost:8080/files/" + filename;
+            existingComment.setAttachment(url);
+        } else {
+            existingComment.setAttachment(updatedComment.getAttachment());
+        }        commentRepository.save(existingComment);
         return ResponseEntity.ok(commentModelAssembler.toModel(existingComment));
     }
 

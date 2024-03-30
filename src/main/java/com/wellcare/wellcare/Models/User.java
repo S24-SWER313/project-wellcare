@@ -5,7 +5,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -21,10 +32,7 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.groups.Default;
 import lombok.Data;
 
-enum Gender {
-    FEMALE,
-    MALE,
-}
+
 
 @Entity
 @Data
@@ -52,17 +60,38 @@ public class User {
 
     private String mobile;
     private String bio;
+
+    @Enumerated(EnumType.STRING)
     private Gender gender;
     private String image;
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
-    private Set<User> follower = new HashSet<>();
+   
 
-    @ManyToMany(fetch = FetchType.EAGER, mappedBy = "follower")
-    private Set<User> following = new HashSet<>();
+    private String attachment;
+    private String degree;
+    private String specialty;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "user_following",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "following_id")
+    )
+    @JsonIgnoreProperties({ "password", "email", "mobile", "bio", "gender", "image", "role",
+        "followers", "friends", "savedPost" })
+    private List<User> following = new ArrayList<>();
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "user_followers",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "follower_id")
+    )
+    @JsonIgnoreProperties({ "password", "email", "mobile", "bio", "gender", "image", "role",
+        "followers", "friends", "savedPost" })
+    private List<User> followers = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_saved_posts", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "post_id"))
@@ -89,9 +118,10 @@ public class User {
     public String toString() {
         return "User [id=" + id + ", username=" + username + ", name=" + name
                 + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
-                + gender + ", image=" + image + ", follower=" + follower + ", following=" + following + ", savedPost="
-                + savedPost + "]";
+                + gender + ", image=" + image + ", role=" + role + ", savedPost="
+                + savedPost.size() + "]";
     }
+    
 
     public interface Create extends Default {
     }
