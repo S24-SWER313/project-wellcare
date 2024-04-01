@@ -1,5 +1,7 @@
 package com.wellcare.wellcare.payload.request;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import com.wellcare.wellcare.Models.Gender;
 
 import jakarta.validation.constraints.Email;
@@ -33,7 +35,7 @@ public class SignupRequest {
 
     private String specialty;
 
-    private String attachment;
+    private MultipartFile attachment;
 
     public String getUsername() {
         return username;
@@ -55,11 +57,11 @@ public class SignupRequest {
         this.specialty = specialty;
     }
 
-    public String getAttachment() {
+    public MultipartFile getAttachment() {
         return attachment;
     }
 
-    public void setAttachment(String attachment) {
+    public void setAttachment(MultipartFile attachment) {
         this.attachment = attachment;
     }
 

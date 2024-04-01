@@ -12,10 +12,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Role;
@@ -56,7 +59,8 @@ public class AuthController {
 
     @PostMapping("/signup")
     @Transactional
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+    public ResponseEntity<?> registerUser(@Valid @ModelAttribute SignupRequest signUpRequest,
+            @RequestParam(value = "file", required = false) MultipartFile attachment) {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
         }
@@ -79,14 +83,15 @@ public class AuthController {
             user.setDegree(signUpRequest.getDegree());
             user.setSpecialty(signUpRequest.getSpecialty());
             userRole = new Role(ERole.DOCTOR);
-            if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null
-                    || signUpRequest.getAttachment() == null) {
-                return ResponseEntity.badRequest()
-                        .body(new MessageResponse("Error: Doctor specialty, degree, and attachment are required!"));
+            System.out.println("testtttttttttttttttttttttttttttttttttttttt");
+            System.out.println("attachment" + attachment);
+            if (attachment != null) {
+                System.out.println("Received file: " + attachment.getOriginalFilename());
+                storageService.store(attachment);
+                String filename = attachment.getOriginalFilename();
+                String url = "http://localhost:8080/files/" + filename;
+                user.setAttachment(url); // Set the attachment URL only if an attachment is provided
             }
-            user.setDegree(signUpRequest.getDegree());
-            user.setSpecialty(signUpRequest.getSpecialty());
-            user.setAttachment(signUpRequest.getAttachment());
         } else {
             userRole = new Role(ERole.PATIENT);
         }
