@@ -3,6 +3,7 @@ package com.wellcare.wellcare.Models;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
@@ -41,8 +42,10 @@ public class User {
     @Size(min = 2, message = "Name should have at least 2 characters")
     private String name;
 
+
     @NotNull(groups = { Create.class })
     @Size(min = 8, message = "Password should have at least 8 characters")
+    @JsonIgnore
     private String password;
 
     @Email(message = "Please enter a valid email address")

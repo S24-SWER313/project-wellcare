@@ -14,6 +14,7 @@ import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +40,7 @@ import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
@@ -203,29 +205,68 @@ public class PostController {
 
     @GetMapping("/feed")
     public ResponseEntity<List<EntityModel<Post>>> getFilteredPosts(
-            @RequestParam(required = false) ERole role) {
-
+            @RequestParam(required = false) ERole role,
+            @RequestParam(required = false) Boolean followingOnly,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) throws UserException {
+    
         List<Post> posts;
-        if (role != null) {
+    
+        if (role != null && Boolean.TRUE.equals(followingOnly)) {
+            // Filter posts based on role and following
+            if (userDetails != null && userDetails.getId() != null) {
+                List<User> followingUsers = userRepository.findById(userDetails.getId())
+                        .orElseThrow(() -> new UserException("User not found")).getFollowing();
+    
+                List<User> usersByRole = userRepository.findAllUsersByRole(role);
+                if (usersByRole.isEmpty()) {
+                    throw new ResourceNotFoundException("Users", null, new Throwable("No users found for the given role"));
+                }
+    
+                List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
+                List<Post> roleBasedPosts = postRepository.findAllPostsByUserIds(userIds)
+                        .orElseThrow(() -> new ResourceNotFoundException("Posts", null,
+                                new Throwable("No posts found for the given role")));
+    
+                posts = roleBasedPosts.stream()
+                        .filter(post -> followingUsers.contains(post.getUser()))
+                        .collect(Collectors.toList());
+    
+            } else {
+                throw new UserException("User details not found");
+            }
+        } else if (role != null) {
+            // Filter posts based on role
             List<User> usersByRole = userRepository.findAllUsersByRole(role);
             if (usersByRole.isEmpty()) {
                 throw new ResourceNotFoundException("Users", null, new Throwable("No users found for the given role"));
             }
-
+    
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
-            posts = postRepository.findAllPostsByRole(role)
+            posts = postRepository.findAllPostsByUserIds(userIds)
                     .orElseThrow(() -> new ResourceNotFoundException("Posts", null,
                             new Throwable("No posts found for the given role")));
+        } else if (Boolean.TRUE.equals(followingOnly)) {
+            // Filter posts to show only those from people the user follows
+            if (userDetails != null && userDetails.getId() != null) {
+                List<User> followingUsers = userRepository.findById(userDetails.getId())
+                        .orElseThrow(() -> new UserException("User not found")).getFollowing();
+                posts = postRepository.findAllByUserInOrderByCreatedAtDesc(followingUsers);
+            } else {
+                throw new UserException("User details not found");
+            }
         } else {
+            // Fetch all posts
             posts = postRepository.findAllWithLikesAndComments();
         }
-
+    
         List<EntityModel<Post>> postModels = posts.stream()
                 .map(postModelAssembler::toModel)
                 .collect(Collectors.toList());
-
+    
         return ResponseEntity.ok(postModels);
     }
+    
+    
 
     @Transactional
 @PutMapping("/like-switcher/{postId}")

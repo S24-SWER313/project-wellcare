@@ -70,7 +70,7 @@ public class CommentController {
     StorageService storageService;
 
     @PostMapping("/{postId}")
-    public ResponseEntity<EntityModel<Comment>> createComment( @Valid @ModelAttribute Comment comment, @RequestParam("file") MultipartFile file, @PathVariable Long postId,
+    public ResponseEntity<EntityModel<Comment>> createComment( @Valid @ModelAttribute Comment comment, @RequestParam(value = "file", required = false) MultipartFile file, @PathVariable Long postId,
             HttpServletRequest request) throws UserException, PostException {
 
         try {
@@ -138,43 +138,43 @@ public class CommentController {
     }
 
     @Transactional
-    @DeleteMapping("/{commentId}")
-    public ResponseEntity<?> deleteComment(@PathVariable Long commentId, HttpServletRequest request)
-            throws UserException, CommentException {
-        try {
-            String jwtToken = authTokenFilter.parseJwt(request);
-            System.out.println("Extracted JWT token: " + jwtToken);
-    
-            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-            System.out.println("Extracted userId: " + userId);
-    
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new UserException("User not found"));
-    
-            Comment comment = commentRepository.findById(commentId)
-                    .orElseThrow(() -> new CommentException("Comment not found"));
-    
-            if (comment.getUser().getId().equals(userId)) {
-                comment.getCommentLikes().clear();
+@DeleteMapping("/{commentId}")
+public ResponseEntity<?> deleteComment(@PathVariable Long commentId, HttpServletRequest request)
+        throws UserException, CommentException {
+    try {
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
 
-                Post post = comment.getPost();
-                post.getComments().remove(comment);
-                post.setNoOfComments(post.getNoOfComments() - 1);
-                postRepository.save(post);
-    
-                commentRepository.deleteById(commentId);
-                
-                return ResponseEntity.ok(new MessageResponse("Comment deleted successfully!"));
-            } else {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
-            }
-    
-        } catch (UserException ex) {
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserException("User not found"));
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new CommentException("Comment not found"));
+
+        if (!comment.getUser().getId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
-        } catch (CommentException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("Comment not found!"));
         }
+
+        comment.getCommentLikes().clear();
+
+        Post post = comment.getPost();
+        post.getComments().remove(comment);
+        post.setNoOfComments(post.getNoOfComments() - 1);
+        postRepository.save(post);
+
+        commentRepository.deleteById(commentId);
+
+        return ResponseEntity.ok(new MessageResponse("Comment deleted successfully!"));
+    } catch (UserException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
+    } catch (CommentException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("Comment not found!"));
     }
+}
+
     
     
 

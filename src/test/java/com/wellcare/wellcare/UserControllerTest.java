@@ -24,7 +24,9 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -104,11 +106,11 @@ public class UserControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updatedUser)))
                 .andExpect(status().isOk())
-                .andExpect(content().string("User profile updated successfully"));
+                .andExpect(jsonPath("$.message").value("User profile updated successfully"));
 
         verify(userRepository, times(1)).save(any(User.class));
     }
-
+    
     @Test
     @WithMockUser(username = "testUser", password = "testPassword")
     public void testUpdateUserPassword() throws Exception {
@@ -116,7 +118,65 @@ public class UserControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"password\": \"newPassword123\"}"))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Password updated successfully"));
+                .andExpect(jsonPath("$.message").value("Password updated successfully"));
+
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+@WithMockUser(username = "testUser", password = "testPassword", authorities = {"DOCTOR"})
+public void testUpdateDoctorProfile() throws Exception {
+    Map<String, String> doctorData = new HashMap<>();
+    doctorData.put("specialty", "Cardiologist");
+    doctorData.put("degree", "MD");
+
+    mockMvc.perform(put("/api/users/profile/{userId}/doctor", 1L)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(doctorData)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Doctor profile updated successfully"))
+            .andExpect(result -> {
+                System.out.println(result.getResponse().getContentAsString());
+            });
+
+    verify(userRepository, times(1)).save(any(User.class));
+}
+
+    
+
+
+    @Test
+    @WithMockUser(username = "testUser", password = "testPassword")
+    public void testFollowUser() throws Exception {
+        User friend = new User();
+        friend.setId(2L);
+
+        when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
+
+        mockMvc.perform(put("/api/users/following/{userId}", 2L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("You started following user with ID: 2"));
+
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    @WithMockUser(username = "testUser", password = "testPassword")
+    public void testUnfollowUser() throws Exception {
+        User friend = new User();
+        friend.setId(2L);
+
+        User currentUser = new User();
+    currentUser.setId(1L);
+    currentUser.getFollowing().add(friend);
+
+        when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(currentUser));
+
+        mockMvc.perform(put("/api/users/unfollowing/{userId}", 2L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("You have unfollowed user with ID: 2"));
+
 
         verify(userRepository, times(1)).save(any(User.class));
     }

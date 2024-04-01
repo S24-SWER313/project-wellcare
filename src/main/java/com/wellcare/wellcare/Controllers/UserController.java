@@ -59,14 +59,14 @@ public class UserController {
 
     @PutMapping("/profile/{userId}")
     @Transactional
-    public ResponseEntity<?> updateUserProfile(@PathVariable Long userId, @Valid @ModelAttribute User updatedUser, @RequestParam(value = "file", required = false) MultipartFile file) {
+    public ResponseEntity<MessageResponse> updateUserProfile(@PathVariable Long userId, @Valid @ModelAttribute User updatedUser, @RequestParam(value = "file", required = false) MultipartFile file) {
         // Get the authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
         // Check if the authenticated user ID matches the requested user ID
         if (!userDetails.getId().equals(userId)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("You are not authorized to update this profile");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("You are not authorized to update this profile"));
         }
 
         Optional<User> existingUser = userRepository.findById(userId);
@@ -109,83 +109,60 @@ public class UserController {
 
             userRepository.save(user);
 
-            return ResponseEntity.ok().body("User profile updated successfully");
+            return ResponseEntity.ok().body(new MessageResponse("User profile updated successfully"));
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
     }
 
-     // @PreAuthorize("hasRole('DOCTOR')")
-     @PutMapping("/profile/{userId}/doctor")
-     @Transactional
-     public ResponseEntity<?> updateDoctorProfile(@PathVariable Long userId,
-                                                  @RequestParam(value = "file", required = false) MultipartFile file,
-                                                  @RequestBody Map<String, String> doctorData) {
-     
-         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-     
-         logger.info("Authorities: {}", userDetails.getAuthorities());
-     
-         if (!userDetails.getId().equals(userId)) {
-             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                     .body("You are not authorized to update this profile");
-         }
-     
-         if (!userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("DOCTOR"))) {
-             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                     .body("You are not authorized to update doctor-specific data");
-         }
-     
-         Optional<User> existingUser = userRepository.findById(userId);
-     
-         if (existingUser.isPresent()) {
-             User user = existingUser.get();
-     
-             String specialty = doctorData.get("specialty");
-             String degree = doctorData.get("degree");
-     
-             if (specialty != null) {
-                 user.setSpecialty(specialty);
-             }
-             if (degree != null) {
-                 user.setDegree(degree);
-             }
-             
-             // Check if the "name" key exists in the doctorData map before setting it to the user
-             if (doctorData.containsKey("name")) {
-                 String name = doctorData.get("name");
-                 if (name != null && !name.isEmpty()) {
-                     user.setName(name);
-                 }
-             }
-     
-             if (file != null && !file.isEmpty()) {
-                 try {
-                     storageService.store(file);
-                     String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
-                     user.setImage(imageUrl);
-                 } catch (Exception e) {
-                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                             .body("Failed to store the file: " + e.getMessage());
-                 }
-             } else if (user.getImage() != null) {
-                 user.setImage(user.getImage());
-             }
-     
-             userRepository.save(user);
-     
-             return ResponseEntity.ok().body("Doctor profile updated successfully");
-         } else {
-             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-         }
-     }
+    // @PreAuthorize("hasRole('DOCTOR')")
+    @PutMapping("/profile/{userId}/doctor")
+    @Transactional
+    public ResponseEntity<MessageResponse> updateDoctorProfile(@PathVariable Long userId,
+            @RequestBody Map<String, String> doctorData) {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+        logger.info("Authorities: {}", userDetails.getAuthorities());
+
+        if (!userDetails.getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new MessageResponse("You are not authorized to update this profile"));
+        }
+
+        if (!userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("DOCTOR"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new MessageResponse("You are not authorized to update doctor-specific data"));
+        }
+
+        Optional<User> existingUser = userRepository.findById(userId);
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+
+            String specialty = doctorData.get("specialty");
+            String degree = doctorData.get("degree");
+
+            if (specialty != null) {
+                user.setSpecialty(specialty);
+            }
+            if (degree != null) {
+                user.setDegree(degree);
+            }
+           
+            userRepository.save(user);
+
+            return ResponseEntity.ok().body(new MessageResponse("Doctor profile updated successfully"));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
+        }
+    }
      
 
      
     @PutMapping("/profile/{userId}/password")
     @Transactional
-    public ResponseEntity<?> updateUserPassword(@PathVariable Long userId,
+    public ResponseEntity<MessageResponse> updateUserPassword(@PathVariable Long userId,
             @RequestBody Map<String, String> passwordMap) {
         // Get the authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -197,13 +174,13 @@ public class UserController {
         // Check if the authenticated user ID matches the requested user ID
         if (!userDetails.getId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("You are not authorized to update this password");
+                    .body(new MessageResponse("You are not authorized to update this password"));
         }
 
         // Check if the new password is empty or shorter than 8 characters
         if (newPassword == null || newPassword.isEmpty() || newPassword.length() < 8) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Password should have at least 8 characters");
+                    .body(new MessageResponse("Password should have at least 8 characters"));
         }
 
         Optional<User> existingUser = userRepository.findById(userId);
@@ -217,9 +194,9 @@ public class UserController {
             user.setPassword(hashedPassword);
             userRepository.save(user);
 
-            return ResponseEntity.ok().body("Password updated successfully");
+            return ResponseEntity.ok().body(new MessageResponse("Password updated successfully"));
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
     }
     

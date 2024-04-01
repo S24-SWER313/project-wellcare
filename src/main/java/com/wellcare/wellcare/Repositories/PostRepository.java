@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Post;
+import com.wellcare.wellcare.Models.User;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
 
@@ -26,4 +27,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p FROM Post p WHERE p.user.id IN :userIds")
     Optional<List<Post>> findAllPostsByUserIds(@Param("userIds") List<Long> userIds);
+
+    @Query("SELECT p FROM Post p WHERE p.user IN :users ORDER BY p.createdAt DESC")
+    List<Post> findAllByUserInOrderByCreatedAtDesc(@Param("users") List<User> users);
+
 }

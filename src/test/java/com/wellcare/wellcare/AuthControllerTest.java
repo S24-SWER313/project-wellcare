@@ -23,11 +23,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -84,6 +86,7 @@ public class AuthControllerTest {
 
         when(userRepository.existsByUsername(anyString())).thenReturn(false);
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenReturn(user);
 
         when(roleRepository.save(any(Role.class))).thenReturn(role);
@@ -96,7 +99,85 @@ public class AuthControllerTest {
     }
 
     @Test
-    public void testRegisterUser() throws Exception {
+    public void testRegisterUserDuplicateUsername() throws Exception {
+        SignupRequest signupRequest = new SignupRequest();
+        signupRequest.setUsername("testUser");
+        signupRequest.setPassword("newPassword123");
+        signupRequest.setEmail("new@example.com");
+        signupRequest.setName("New User");
+        signupRequest.setRole("PATIENT");
+
+        when(userRepository.existsByUsername(anyString())).thenReturn(true);
+
+        mockMvc.perform(post("/api/auth/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(signupRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Error: Username is already taken!"));
+
+        verify(userRepository, times(0)).save(any(User.class));
+    }
+
+    @Test
+    public void testRegisterUserDuplicateEmail() throws Exception {
+        SignupRequest signupRequest = new SignupRequest();
+        signupRequest.setUsername("newUser");
+        signupRequest.setPassword("newPassword123");
+        signupRequest.setEmail("test@example.com");
+        signupRequest.setName("New User");
+        signupRequest.setRole("PATIENT");
+
+        when(userRepository.existsByEmail(anyString())).thenReturn(true);
+
+        mockMvc.perform(post("/api/auth/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(signupRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Error: Email is already in use!"));
+
+        verify(userRepository, times(0)).save(any(User.class));
+    }
+
+    @Test
+    public void testAuthenticateUserWrongPassword() throws Exception {
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername("testUser");
+        loginRequest.setPassword("wrongPassword");
+
+        when(authenticationManager.authenticate(any())).thenThrow(new RuntimeException("Invalid credentials"));
+
+        mockMvc.perform(post("/api/auth/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isBadRequest());  // Expecting 400 Bad Request due to GlobalExceptionHandler
+
+        verify(authenticationManager, times(1)).authenticate(any());
+    }
+
+ @Test
+public void testAuthenticateUserNonExistingUsername() throws Exception {
+    LoginRequest loginRequest = new LoginRequest();
+
+    loginRequest.setPassword("password123");
+
+    when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
+    when(authenticationManager.authenticate(any()))
+            .thenThrow(new UsernameNotFoundException("User not found"));
+
+    mockMvc.perform(post("/api/auth/signin")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Validation Error"));
+
+            verify(authenticationManager, times(0)).authenticate(any()); 
+        
+        }
+
+
+
+    @Test
+    public void testRegisterUserSuccess() throws Exception {
         SignupRequest signupRequest = new SignupRequest();
         signupRequest.setUsername("newUser");
         signupRequest.setPassword("newPassword123");
@@ -113,12 +194,14 @@ public class AuthControllerTest {
         verify(userRepository, times(1)).save(any(User.class));
     }
 
+  
+
     @Test
-    public void testAuthenticateUser() throws Exception {
+    public void testAuthenticateUserSuccess() throws Exception {
         LoginRequest loginRequest = new LoginRequest();
         loginRequest.setUsername("testUser");
         loginRequest.setPassword("testPassword");
-    
+
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 new UserDetailsImpl(
                         1L,
@@ -131,14 +214,31 @@ public class AuthControllerTest {
                 new ArrayList<>()
         );
         when(authenticationManager.authenticate(any())).thenReturn(authentication);
-    
+
         mockMvc.perform(post("/api/auth/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("testUser"))
                 .andExpect(jsonPath("$.email").value("test@example.com"));
-    
+
         verify(authenticationManager, times(1)).authenticate(any());
     }
-}    
+
+    @Test
+    public void testAuthenticateUserInvalidCredentials() throws Exception {
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername("testUser");
+        loginRequest.setPassword("wrongPassword");
+
+        when(authenticationManager.authenticate(any())).thenThrow(new RuntimeException("Invalid credentials"));
+
+        mockMvc.perform(post("/api/auth/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isBadRequest());
+
+        verify(authenticationManager, times(1)).authenticate(any());
+    }
+
+}

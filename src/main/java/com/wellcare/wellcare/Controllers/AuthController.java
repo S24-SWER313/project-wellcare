@@ -7,7 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -75,7 +77,7 @@ public class AuthController {
         if (signUpRequest.getRole() != null && signUpRequest.getRole().equals("DOCTOR")) {
             if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null) {
                 return ResponseEntity.badRequest()
-                        .body(new MessageResponse("Error: Doctor specialty, degree, and attachment are required!"));
+                        .body(new MessageResponse("Error: Doctor specialty and degree are required!"));
             }
             user.setDegree(signUpRequest.getDegree());
             user.setSpecialty(signUpRequest.getSpecialty());
@@ -98,24 +100,34 @@ public class AuthController {
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-
-        Authentication authentication = authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
-                        loginRequest.getPassword()));
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-        String jwt = jwtUtils.generateJwtToken(auth);
-
-        String roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
-                .collect(Collectors.joining(","));
-
-        return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(),
-                userDetails.getUsername(), userDetails.getEmail(), roles));
+        if (loginRequest.getUsername() == null || loginRequest.getUsername().isEmpty()) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Validation Error"));
+        }
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+    
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+    
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+    
+            Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+    
+            String jwt = jwtUtils.generateJwtToken(auth);
+    
+            String roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
+                    .collect(Collectors.joining(","));
+    
+            return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(),
+                    userDetails.getUsername(), userDetails.getEmail(), roles));
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Validation Error"));
+        } catch (AuthenticationException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Invalid credentials"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Validation Error"));
+        }
     }
+    
 
 }
