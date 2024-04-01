@@ -121,8 +121,46 @@ public void testToggleLikeComment() throws Exception {
             .andExpect(MockMvcResultMatchers.status().isOk());
 }
 
+@Test
+@WithMockUser(username = "testUser", roles = { "DOCTOR" })
+public void testCreateCommentWithFile() throws Exception {
+    Comment comment = new Comment();
+    comment.setContent("Test content");
+    comment.setCreatedAt(LocalDateTime.now());
 
+    when(commentRepository.save(any(Comment.class))).thenReturn(comment);
+
+    mockMvc.perform(MockMvcRequestBuilders.multipart("/api/comments/1")
+            .file("file", "fileContent".getBytes())
+            .param("comment", asJsonString(comment))
+            .contentType(MediaType.MULTIPART_FORM_DATA))
+            .andExpect(MockMvcResultMatchers.status().isOk());
+}
     
+@Test
+@WithMockUser(username = "testUser", roles = { "DOCTOR" })
+public void testUpdateCommentWithFile() throws Exception {
+    Comment existingComment = new Comment();
+    existingComment.setId(1L);
+    existingComment.setContent("Existing content");
+    existingComment.setCreatedAt(LocalDateTime.now());
+
+    Comment updatedComment = new Comment();
+    updatedComment.setId(1L);
+    updatedComment.setContent("Updated content");
+
+    when(commentRepository.findById(1L)).thenReturn(Optional.of(existingComment));
+    when(commentRepository.save(any(Comment.class))).thenReturn(updatedComment);
+
+    mockMvc.perform(MockMvcRequestBuilders.multipart("/api/comments/1")
+            .file("file", "fileContent".getBytes())
+            .param("comment", asJsonString(updatedComment))
+            .contentType(MediaType.MULTIPART_FORM_DATA))
+            .andExpect(MockMvcResultMatchers.status().isOk());
+}
+
+
+
       private String asJsonString(final Object obj) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();

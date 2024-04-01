@@ -13,10 +13,12 @@ import org.springframework.boot.autoconfigure.pulsar.PulsarProperties.Authentica
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,11 +26,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.wellcare.wellcare.Assemblers.PostModelAssembler;
@@ -43,6 +43,7 @@ import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
@@ -79,27 +80,27 @@ public class PostController {
     private EntityManager entityManager;
 
     @Transactional
-   @PostMapping("/new-post")
+    @PostMapping("/new-post")
     public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
-            @Valid @ModelAttribute Post post, 
-            @RequestParam("file") MultipartFile[] files,
+            @Valid @ModelAttribute Post post,
+            @RequestParam(value = "file", required = false) MultipartFile[] files,
             Authentication authentication) throws UserException {
         try {
             // Extract the JWT token from the request
             String jwtToken = authTokenFilter.parseJwt(request);
             System.out.println("Extracted JWT token: " + jwtToken);
-    
+
             // Parse the JWT token to extract the userId
             Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
             System.out.println("Extracted userId: " + userId);
-    
+
             // Use the extracted userId to get the User object
             Optional<User> existingUserOptional = userRepository.findById(userId);
             User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
-    
+
             post.setUser(user); // Set the User for the Post
             post.setCreatedAt(LocalDateTime.now());
-    
+
             List<String> attachmentUrls = new ArrayList<>();
             for (MultipartFile file : files) {
                 System.out.println("Received file: " + file.getOriginalFilename());
@@ -109,13 +110,13 @@ public class PostController {
                 attachmentUrls.add(url);
 
             }
-            
-            post.setAttachment(attachmentUrls);  // Set attachments to the post
-    
+
+            post.setAttachment(attachmentUrls); // Set attachments to the post
+
             Post createdPost = postRepository.save(post);
-    
+
             EntityModel<Post> postModel = postModelAssembler.toModel(createdPost);
-    
+
             // Pass the userId to the linkTo method
             return new ResponseEntity<>(postModel, HttpStatus.CREATED);
         } catch (Exception ex) {
@@ -128,11 +129,10 @@ public class PostController {
             }
         }
     }
-    
 
     @Transactional
     @PutMapping("/{postId}")
-    public ResponseEntity<EntityModel<Post>> updatePost(@ModelAttribute Post updatedPost, 
+    public ResponseEntity<EntityModel<Post>> updatePost(@ModelAttribute Post updatedPost,
             @PathVariable Long postId,
             @RequestParam(value = "file", required = false) MultipartFile[] files) throws PostException {
         try {
@@ -141,9 +141,9 @@ public class PostController {
                 throw new ResourceNotFoundException("Post", postId);
             }
             Post existingPost = existingPostOptional.get();
-    
+
             entityManager.detach(existingPost);
-    
+
             // Update only the fields that are not null in the updatedPost
             if (updatedPost.getContent() != null) {
                 existingPost.setContent(updatedPost.getContent());
@@ -151,22 +151,22 @@ public class PostController {
             if (updatedPost.getLocation() != null) {
                 existingPost.setLocation(updatedPost.getLocation());
             }
-    
+
             List<String> attachmentUrls = new ArrayList<>();
-            
+
             if (files != null && files.length > 0) {
                 for (MultipartFile file : files) {
                     storageService.store(file);
-                String filename = file.getOriginalFilename();
-                String url = "http://localhost:8080/files/" + filename;
-                attachmentUrls.add(url);
+                    String filename = file.getOriginalFilename();
+                    String url = "http://localhost:8080/files/" + filename;
+                    attachmentUrls.add(url);
                 }
             }
-    
-            existingPost.setAttachment(attachmentUrls);  // Set attachments to the existing post
-    
+
+            existingPost.setAttachment(attachmentUrls); // Set attachments to the existing post
+
             Post savedPost = postRepository.save(existingPost);
-    
+
             EntityModel<Post> postModel = postModelAssembler.toModel(savedPost);
             return new ResponseEntity<>(postModel, HttpStatus.OK);
         } catch (Exception ex) {
@@ -174,18 +174,18 @@ public class PostController {
             throw new PostException("Error updating post: " + ex.getMessage());
         }
     }
-    
 
     @GetMapping("/{userId}")
-    public ResponseEntity<PagedModel<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId, Pageable pageable) {
+    public ResponseEntity<PagedModel<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId,
+            Pageable pageable) {
         Page<Post> userPosts = postRepository.findByUserId(userId, pageable);
 
         PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(userPosts, postModelAssembler);
-        
 
         return new ResponseEntity<>(pagedModel, HttpStatus.OK);
 
     }
+
     @Transactional
     @DeleteMapping("/{postId}")
     public ResponseEntity<MessageResponse> deletePost(@PathVariable Long postId) {
@@ -205,75 +205,120 @@ public class PostController {
                     .body(new MessageResponse("Failed to delete post with ID: " + postId));
         }
     }
+
     @GetMapping("/feed")
-    public ResponseEntity<PagedModel<EntityModel<Post>>> getFilteredPosts(@RequestParam(required = false) ERole role, Pageable pageable) {
-        Page<Post> posts;
-        if (role != null) {
+    public ResponseEntity<PagedModel<EntityModel<Post>>> getFilteredPosts(
+            @RequestParam(required = false) ERole role,
+            @RequestParam(required = false) Boolean followingOnly,
+            Pageable pageable,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) throws UserException {
+
+        Page<Post> postsPage;
+
+        if (role != null && Boolean.TRUE.equals(followingOnly)) {
+            // Filter posts based on role and following
+            if (userDetails != null && userDetails.getId() != null) {
+                List<User> followingUsers = userRepository.findById(userDetails.getId())
+                        .orElseThrow(() -> new UserException("User not found")).getFollowing();
+
+                List<User> usersByRole = userRepository.findAllUsersByRole(role);
+                if (usersByRole.isEmpty()) {
+                    throw new ResourceNotFoundException("Users", null,
+                            new Throwable("No users found for the given role"));
+                }
+
+                List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
+                postsPage = postRepository.findAllPostsByUserIds(userIds, pageable);
+
+                if (postsPage.isEmpty()) {
+                    throw new ResourceNotFoundException("Posts", null,
+                            new Throwable("No posts found for the given role"));
+                }
+
+                List<Post> roleBasedPosts = postsPage.getContent().stream()
+                        .filter(post -> followingUsers.contains(post.getUser()))
+                        .collect(Collectors.toList());
+
+                postsPage = new PageImpl<>(roleBasedPosts, pageable, roleBasedPosts.size());
+
+            } else {
+                throw new UserException("User details not found");
+            }
+        } else if (role != null) {
+            // Filter posts based on role
             List<User> usersByRole = userRepository.findAllUsersByRole(role);
             if (usersByRole.isEmpty()) {
                 throw new ResourceNotFoundException("Users", null, new Throwable("No users found for the given role"));
             }
 
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
-            posts = postRepository.findAllPostsByUserIds(userIds, pageable);
+            postsPage = postRepository.findAllPostsByUserIds(userIds, pageable);
 
-            if (posts.isEmpty()) {
+            if (postsPage.isEmpty()) {
                 throw new ResourceNotFoundException("Posts", null, new Throwable("No posts found for the given role"));
             }
+        } else if (Boolean.TRUE.equals(followingOnly)) {
+            // Filter posts to show only those from people the user follows
+            if (userDetails != null && userDetails.getId() != null) {
+                List<User> followingUsers = userRepository.findById(userDetails.getId())
+                        .orElseThrow(() -> new UserException("User not found")).getFollowing();
+                postsPage = new PageImpl<>(postRepository.findAllByUserInOrderByCreatedAtDesc(followingUsers), pageable,
+                        followingUsers.size());
+            } else {
+                throw new UserException("User details not found");
+            }
         } else {
-            posts = postRepository.findAllWithLikesAndComments(pageable);
+            // Fetch all posts
+            postsPage = postRepository.findAllWithLikesAndComments(pageable);
         }
 
-        PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(posts, postModelAssembler);
-        
+        PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(postsPage, postModelAssembler);
 
-        return new ResponseEntity<>(pagedModel, HttpStatus.OK);
+        return ResponseEntity.ok(pagedModel);
     }
-    
 
     @Transactional
-@PutMapping("/like-switcher/{postId}")
-public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
-        throws UserException, PostException {
+    @PutMapping("/like-switcher/{postId}")
+    public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest request, @PathVariable Long postId)
+            throws UserException, PostException {
 
-    try {
-        // Extract the JWT token from the request
-        String jwtToken = authTokenFilter.parseJwt(request);
-        System.out.println("Extracted JWT token: " + jwtToken);
+        try {
+            // Extract the JWT token from the request
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
 
-        // Parse the JWT token to extract the userId
-        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-        System.out.println("Extracted userId: " + userId);
-        
-        Optional<User> optionalUser = userRepository.findById(userId);
-        User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
 
-        Optional<Post> optionalPost = postRepository.findById(postId);
-        if (optionalPost.isEmpty()) {
-            throw new PostException("Post not found");
+            Optional<User> optionalUser = userRepository.findById(userId);
+            User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
+
+            Optional<Post> optionalPost = postRepository.findById(postId);
+            if (optionalPost.isEmpty()) {
+                throw new PostException("Post not found");
+            }
+
+            Post post = optionalPost.get();
+
+            boolean hasLiked = post.getLikes().contains(user);
+
+            if (hasLiked) {
+                post.getLikes().remove(user);
+                post.setNoOfLikes(post.getNoOfLikes() - 1);
+            } else {
+                post.getLikes().add(user);
+                post.setNoOfLikes(post.getNoOfLikes() + 1);
+            }
+
+            Post likedPost = postRepository.save(post);
+            EntityModel<Post> postModel = postModelAssembler.toModel(likedPost);
+            return new ResponseEntity<>(postModel, HttpStatus.OK);
+        } catch (Exception ex) {
+            logger.error("Error toggling like on post", ex);
+            throw new PostException("Error toggling like on post: " + ex.getMessage());
         }
-        
-        Post post = optionalPost.get();
-
-        boolean hasLiked = post.getLikes().contains(user);
-
-        if (hasLiked) {
-            post.getLikes().remove(user);
-            post.setNoOfLikes(post.getNoOfLikes() - 1);
-        } else {
-            post.getLikes().add(user);
-            post.setNoOfLikes(post.getNoOfLikes() + 1);
-        }
-
-        Post likedPost = postRepository.save(post);
-        EntityModel<Post> postModel = postModelAssembler.toModel(likedPost);
-        return new ResponseEntity<>(postModel, HttpStatus.OK);
-    } catch (Exception ex) {
-        logger.error("Error toggling like on post", ex);
-        throw new PostException("Error toggling like on post: " + ex.getMessage());
     }
-}
-
 
     @Transactional
     @PutMapping("/save-switcher/{postId}")
@@ -315,10 +360,10 @@ public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest reque
         }
     }
 
-
     @Transactional
     @GetMapping("/saved-posts")
-    public ResponseEntity<PagedModel<EntityModel<Post>>> getAllSavedPosts(HttpServletRequest request, Pageable pageable) throws UserException {
+    public ResponseEntity<PagedModel<EntityModel<Post>>> getAllSavedPosts(HttpServletRequest request, Pageable pageable)
+            throws UserException {
         try {
             String jwtToken = authTokenFilter.parseJwt(request);
             System.out.println("Extracted JWT token: " + jwtToken);
@@ -335,7 +380,8 @@ public ResponseEntity<EntityModel<Post>> toggleLikePost(HttpServletRequest reque
 
             Page<Post> savedPostsPage = new PageImpl<>(savedPosts, pageable, savedPosts.size());
 
-            PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(savedPostsPage, postModelAssembler);
+            PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(savedPostsPage,
+                    postModelAssembler);
 
             return ResponseEntity.ok(pagedModel);
         } catch (ResourceNotFoundException ex) {

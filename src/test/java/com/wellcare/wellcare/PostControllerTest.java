@@ -32,6 +32,8 @@ import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 
+import io.jsonwebtoken.JwtException;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 public class PostControllerTest {
@@ -56,7 +58,7 @@ public class PostControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "testUser", roles = { "USER" })
+    @WithMockUser(username = "testUser", roles = { "DOCTOR" })
     public void testCreatePost() throws Exception {
         Post post = new Post();
         post.setContent("Test content");
@@ -65,13 +67,16 @@ public class PostControllerTest {
         when(postRepository.save(any(Post.class))).thenReturn(post);
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/posts/new-post")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(post)))
+            .contentType(MediaType.MULTIPART_FORM_DATA)
+                .param("content", "Test content")
+                .param("file", "test.jpg"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
+    
+
     @Test
-    @WithMockUser(username = "testUser", roles = { "USER" })
+    @WithMockUser(username = "testUser", roles = { "PATIENT" })
     public void testUpdatePost() throws Exception {
         Post existingPost = new Post();
         existingPost.setId(1L);
@@ -89,10 +94,11 @@ public class PostControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(updatedPost)))
                 .andExpect(MockMvcResultMatchers.status().isOk());
+                
     }
 
     @Test
-    @WithMockUser(username = "testUser", roles = { "USER" })
+    @WithMockUser(username = "testUser", roles = { "DOCTOR" })
     public void testDeletePost() throws Exception {
         Post post = new Post();
         post.setId(1L);

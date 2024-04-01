@@ -30,7 +30,9 @@ public class SignupRequest {
     private Gender gender;
 
     private String degree;
+
     private String specialty;
+
     private String attachment;
 
     public String getUsername() {

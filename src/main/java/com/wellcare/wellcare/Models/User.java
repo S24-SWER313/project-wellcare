@@ -1,10 +1,12 @@
 package com.wellcare.wellcare.Models;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -41,6 +43,7 @@ public class User {
 
     @NotNull(groups = { Create.class })
     @Size(min = 8, message = "Password should have at least 8 characters")
+    @JsonIgnore
     private String password;
 
     @Email(message = "Please enter a valid email address")
@@ -48,6 +51,7 @@ public class User {
 
     private String mobile;
     private String bio;
+
     @Enumerated(EnumType.STRING)
     private Gender gender;
 
@@ -57,15 +61,21 @@ public class User {
     private String degree;
     private String specialty;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "role_id")
     private Role role;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_following", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "following_id"))
+    @JsonIgnoreProperties({ "password", "email", "mobile", "bio", "gender", "image", "role",
+            "followers", "friends", "savedPost" })
+    private List<User> following = new ArrayList<>();
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
-    private Set<User> follower = new HashSet<>();
-
-    @ManyToMany(fetch = FetchType.EAGER, mappedBy = "follower")
-    private Set<User> following = new HashSet<>();
+    @JsonIgnoreProperties({ "password", "email", "mobile", "bio", "gender", "image", "role",
+            "followers", "friends", "savedPost" })
+    private List<User> followers = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_saved_posts", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "post_id"))
@@ -108,8 +118,8 @@ public class User {
     public String toString() {
         return "User [id=" + id + ", username=" + username + ", name=" + name
                 + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
-                + gender + ", image=" + image + ", follower=" + follower + ", following=" + following + ", savedPost="
-                + savedPost + "]";
+                + gender + ", image=" + image + ", role=" + role + ", savedPost="
+                + savedPost.size() + "]";
     }
 
     public interface Create extends Default {
