@@ -12,13 +12,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Role;
@@ -63,16 +60,16 @@ public class AuthController {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
         }
-    
+
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
         }
-    
+
         // Create new user's account
         User user = new User(signUpRequest.getUsername(), signUpRequest.getEmail(),
                 encoder.encode(signUpRequest.getPassword()));
         user.setName(signUpRequest.getName());
-    
+
         Role userRole;
         if (signUpRequest.getRole() != null && signUpRequest.getRole().equals("DOCTOR")) {
             if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null) {
@@ -82,21 +79,27 @@ public class AuthController {
             user.setDegree(signUpRequest.getDegree());
             user.setSpecialty(signUpRequest.getSpecialty());
             userRole = new Role(ERole.DOCTOR);
+            if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null
+                    || signUpRequest.getAttachment() == null) {
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Error: Doctor specialty, degree, and attachment are required!"));
+            }
+            user.setDegree(signUpRequest.getDegree());
+            user.setSpecialty(signUpRequest.getSpecialty());
+            user.setAttachment(signUpRequest.getAttachment());
         } else {
             userRole = new Role(ERole.PATIENT);
         }
-    
+
         // Save the Role object before setting it to the User
         Role savedRole = roleRepository.save(userRole);
         user.setRole(savedRole);
         user.setGender(signUpRequest.getGender());
-        
+
         userRepository.save(user);
-    
+
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
-    
-
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
@@ -106,18 +109,19 @@ public class AuthController {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-    
+
             SecurityContextHolder.getContext().setAuthentication(authentication);
-    
+
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-    
-            Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-    
+
+            Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null,
+                    userDetails.getAuthorities());
+
             String jwt = jwtUtils.generateJwtToken(auth);
-    
+
             String roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
                     .collect(Collectors.joining(","));
-    
+
             return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(),
                     userDetails.getUsername(), userDetails.getEmail(), roles));
         } catch (UsernameNotFoundException e) {
@@ -128,6 +132,5 @@ public class AuthController {
             return ResponseEntity.badRequest().body(new MessageResponse("Validation Error"));
         }
     }
-    
 
 }

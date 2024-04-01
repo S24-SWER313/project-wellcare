@@ -14,7 +14,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.wellcare.wellcare.Exceptions.UserException;
 import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
@@ -59,14 +57,17 @@ public class UserController {
 
     @PutMapping("/profile/{userId}")
     @Transactional
-    public ResponseEntity<MessageResponse> updateUserProfile(@PathVariable Long userId, @Valid @ModelAttribute User updatedUser, @RequestParam(value = "file", required = false) MultipartFile file) {
+    public ResponseEntity<MessageResponse> updateUserProfile(@PathVariable Long userId,
+            @Valid @ModelAttribute User updatedUser,
+            @RequestParam(value = "file", required = false) MultipartFile file) {
         // Get the authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
         // Check if the authenticated user ID matches the requested user ID
         if (!userDetails.getId().equals(userId)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("You are not authorized to update this profile"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new MessageResponse("You are not authorized to update this profile"));
         }
 
         Optional<User> existingUser = userRepository.findById(userId);
@@ -92,16 +93,15 @@ public class UserController {
             if (updatedUser.getGender() != null) {
                 user.setGender(updatedUser.getGender());
             }
-          
-                if (file != null && !file.isEmpty()) {
-                    System.out.println("Received file: " + file.getOriginalFilename());
-                     storageService.store(file); 
-                     String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();  
-                    user.setImage(imageUrl);
-                } else if (updatedUser.getImage() != null) {
-                    user.setImage(updatedUser.getImage());
-                }
-            
+
+            if (file != null && !file.isEmpty()) {
+                System.out.println("Received file: " + file.getOriginalFilename());
+                storageService.store(file);
+                String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
+                user.setImage(imageUrl);
+            } else if (updatedUser.getImage() != null) {
+                user.setImage(updatedUser.getImage());
+            }
 
             // Set back the existing username and password
             user.setUsername(existingUsername);
@@ -142,6 +142,7 @@ public class UserController {
 
             String specialty = doctorData.get("specialty");
             String degree = doctorData.get("degree");
+            String attachment = doctorData.get("attachment");
 
             if (specialty != null) {
                 user.setSpecialty(specialty);
@@ -149,7 +150,7 @@ public class UserController {
             if (degree != null) {
                 user.setDegree(degree);
             }
-           
+
             userRepository.save(user);
 
             return ResponseEntity.ok().body(new MessageResponse("Doctor profile updated successfully"));
@@ -157,9 +158,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
     }
-     
 
-     
     @PutMapping("/profile/{userId}/password")
     @Transactional
     public ResponseEntity<MessageResponse> updateUserPassword(@PathVariable Long userId,
@@ -199,7 +198,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
     }
-    
+
     @PutMapping("/following/{userId}")
     @Transactional
     public ResponseEntity<MessageResponse> followUser(@PathVariable Long userId) {
@@ -217,7 +216,8 @@ public class UserController {
         User currentUser = currentUserOptional.get();
 
         if (currentUser.getFollowing().contains(friend)) {
-            return ResponseEntity.badRequest().body(new MessageResponse("You are already following the user with ID: " + userId));
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("You are already following the user with ID: " + userId));
         }
 
         currentUser.getFollowing().add(friend);
@@ -245,7 +245,8 @@ public class UserController {
         User currentUser = currentUserOptional.get();
 
         if (!currentUser.getFollowing().contains(friend)) {
-            return ResponseEntity.badRequest().body(new MessageResponse("You are not following the user with ID: " + userId));
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("You are not following the user with ID: " + userId));
         }
 
         currentUser.getFollowing().remove(friend);
@@ -255,6 +256,5 @@ public class UserController {
 
         return ResponseEntity.ok().body(new MessageResponse("You have unfollowed user with ID: " + userId));
     }
-
 
 }

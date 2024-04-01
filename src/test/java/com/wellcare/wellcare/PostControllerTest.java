@@ -14,6 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -109,31 +112,34 @@ public class PostControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
-    @Test
-    public void testGetPostsByUserId() throws Exception {
-        // Prepare mock data
-        Long userId = 1L;
-        List<Post> posts = new ArrayList<>();
-        posts.add(new Post("Content 1"));
-        posts.add(new Post("Content 2"));
-        when(postRepository.findByUserId(userId)).thenReturn(posts);
+   @Test
+public void testGetPostsByUserId() throws Exception {
+    // Prepare mock data
+    Long userId = 1L;
+    List<Post> posts = new ArrayList<>();
+    posts.add(new Post("Content 1"));
+    posts.add(new Post("Content 2"));
+    Page<Post> page = new PageImpl<>(posts);
+    when(postRepository.findByUserId(userId, null)).thenReturn(page);
 
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", userId))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andReturn();
-    }
+    mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", userId))
+            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andReturn();
+}
 
-    @Test
-    public void testGetFilteredPosts() throws Exception {
-        List<Post> posts = new ArrayList<>();
-        posts.add(new Post("Filtered Content 1"));
-        posts.add(new Post("Filtered Content 2"));
-        when(postRepository.findAllWithLikesAndComments()).thenReturn(posts);
 
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/feed"))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andReturn();
-    }
+@Test
+public void testGetFilteredPosts() throws Exception {
+    List<Post> posts = new ArrayList<>();
+    posts.add(new Post("Filtered Content 1"));
+    posts.add(new Post("Filtered Content 2"));
+    Page<Post> page = new PageImpl<>(posts);
+    when(postRepository.findAllWithLikesAndComments(any(Pageable.class))).thenReturn(page);
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/feed"))
+            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andReturn();
+}
 
     @Test
     public void testToggleLikePost() throws Exception {
