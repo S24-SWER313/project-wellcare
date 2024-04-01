@@ -6,7 +6,6 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -17,7 +16,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
@@ -61,9 +59,8 @@ public class User {
     private String degree;
     private String specialty;
 
-    @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "role_id")
-    private Role role;
+    @Enumerated(EnumType.STRING)
+    private ERole role;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_following", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "following_id"))
@@ -90,7 +87,7 @@ public class User {
         this.password = password;
     }
 
-    public User(String username, String name, String password, String email, Role role) {
+    public User(String username, String name, String password, String email, ERole role) {
         this.username = username;
         this.name = name;
         this.password = password;
@@ -103,7 +100,7 @@ public class User {
             String name,
             String password,
             String email, String attachment, String degree,
-            String specialty, Role role) {
+            String specialty, ERole role) {
         this.username = username;
         this.name = name;
         this.password = password;

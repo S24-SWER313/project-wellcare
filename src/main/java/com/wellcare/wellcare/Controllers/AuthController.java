@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.wellcare.wellcare.Models.ERole;
-import com.wellcare.wellcare.Models.Role;
 import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.RoleRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
@@ -74,7 +73,6 @@ public class AuthController {
                 encoder.encode(signUpRequest.getPassword()));
         user.setName(signUpRequest.getName());
 
-        Role userRole;
         if (signUpRequest.getRole() != null && signUpRequest.getRole().equals("DOCTOR")) {
             if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null) {
                 return ResponseEntity.badRequest()
@@ -82,7 +80,7 @@ public class AuthController {
             }
             user.setDegree(signUpRequest.getDegree());
             user.setSpecialty(signUpRequest.getSpecialty());
-            userRole = new Role(ERole.DOCTOR);
+            user.setRole(ERole.DOCTOR);
             System.out.println("testtttttttttttttttttttttttttttttttttttttt");
             System.out.println("attachment" + attachment);
             if (attachment != null) {
@@ -93,12 +91,9 @@ public class AuthController {
                 user.setAttachment(url); // Set the attachment URL only if an attachment is provided
             }
         } else {
-            userRole = new Role(ERole.PATIENT);
+            user.setRole(ERole.PATIENT);
         }
 
-        // Save the Role object before setting it to the User
-        Role savedRole = roleRepository.save(userRole);
-        user.setRole(savedRole);
         user.setGender(signUpRequest.getGender());
 
         userRepository.save(user);

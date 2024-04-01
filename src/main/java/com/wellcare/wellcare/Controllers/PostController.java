@@ -248,7 +248,7 @@ public class PostController {
             // Filter posts based on role
             List<User> usersByRole = userRepository.findAllUsersByRole(role);
             if (usersByRole.isEmpty()) {
-                throw new ResourceNotFoundException("Users", null, new Throwable("No users found for the given role"));
+                throw new UserException("No users found for the given role");
             }
 
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());

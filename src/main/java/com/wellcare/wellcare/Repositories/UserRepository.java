@@ -15,11 +15,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     public Optional<User> findByEmail(String email);
 
     public Optional<User> findByUsername(String username);
+
     public Optional<User> findById(Long id);
 
     Boolean existsByUsername(String username);
 
     Boolean existsByEmail(String email);
+
+    List<User> findByRole(ERole role);
 
     @Query("SELECT u FROM User u WHERE u.id IN :user")
     public List<User> findByUserId(@Param("user") List<Long> userId);
@@ -27,10 +30,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT DISTINCT u FROM User u WHERE u.username LIKE %:query% OR u.email LIKE %:query%")
     public List<User> findBySearch(@Param("query") String query);
 
-    @Query("SELECT u FROM User u JOIN u.role r WHERE r.name = :roleName")
-    List<User> findAllUsersByRole(@Param("roleName") ERole roleName);
-    
+    @Query("SELECT u FROM User u WHERE u.role = :role")
+    List<User> findAllUsersByRole(@Param("role") ERole role);
+
     @Query("SELECT CASE WHEN COUNT(up.id) > 0 THEN true ELSE false END FROM User u JOIN u.savedPost up WHERE u.id = :userId AND up.id = :postId")
     boolean existsUserSavedPostByUserIdAndPostId(Long userId, Long postId);
-    
+
 }

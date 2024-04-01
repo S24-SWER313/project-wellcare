@@ -11,7 +11,6 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -54,9 +53,8 @@ public class Post {
     @Size(max = 255)
     private String content;
 
-    @ElementCollection(fetch = FetchType.EAGER) 
-    @CollectionTable(name = "post_attachment", 
-                     joinColumns = @JoinColumn(name = "post_id"))
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "post_attachment", joinColumns = @JoinColumn(name = "post_id"))
     @Column(name = "attachment_url")
     private List<String> attachment = new ArrayList<>();
 
@@ -71,19 +69,22 @@ public class Post {
     @NotNull
     @ManyToOne(cascade = CascadeType.REMOVE)
     @JoinColumn(name = "user_id")
-    @JsonIgnoreProperties({ "name", "degree", "specialty","password", "email", "mobile", "bio", "gender", "image", "role",
+    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
+            "role",
             "followers", "following", "savedPost" })
     private User user;
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(name = "post_likes", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
-    @JsonIgnoreProperties({ "name","degree", "specialty", "password", "email", "mobile", "bio", "gender", "image", "role",
+    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
+            "role",
             "followers", "following", "savedPost" })
     private Set<User> likes = new HashSet<>();
 
     @OneToMany(mappedBy = "post", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnoreProperties({"post", "name","degree", "specialty", "password", "email", "mobile", "bio", "gender", "image", "role",
-    "followers", "following", "savedPost"})
+    @JsonIgnoreProperties({ "post", "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender",
+            "image", "role",
+            "followers", "following", "savedPost" })
     private List<Comment> comments = new ArrayList<>();
 
     public Post() {

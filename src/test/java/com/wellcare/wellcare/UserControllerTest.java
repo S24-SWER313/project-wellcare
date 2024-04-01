@@ -1,12 +1,16 @@
 package com.wellcare.wellcare;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wellcare.wellcare.Models.ERole;
-import com.wellcare.wellcare.Models.Role;
-import com.wellcare.wellcare.Models.User;
-import com.wellcare.wellcare.Repositories.UserRepository;
-import com.wellcare.wellcare.Security.jwt.JwtUtils;
-import com.wellcare.wellcare.Security.services.UserDetailsImpl;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,17 +27,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wellcare.wellcare.Models.ERole;
+import com.wellcare.wellcare.Models.User;
+import com.wellcare.wellcare.Repositories.UserRepository;
+import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -60,11 +59,10 @@ public class UserControllerTest {
         user.setName("Test User");
         user.setEmail("test@example.com");
 
-        Role role = new Role(ERole.PATIENT);
-        user.setRole(role);
+        user.setRole(ERole.PATIENT);
 
         List<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName().toString()));
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name().toString()));
 
         UserDetails userDetails = new UserDetailsImpl(
                 user.getId(),
@@ -110,7 +108,7 @@ public class UserControllerTest {
 
         verify(userRepository, times(1)).save(any(User.class));
     }
-    
+
     @Test
     @WithMockUser(username = "testUser", password = "testPassword")
     public void testUpdateUserPassword() throws Exception {
@@ -124,26 +122,23 @@ public class UserControllerTest {
     }
 
     @Test
-@WithMockUser(username = "testUser", password = "testPassword", authorities = {"DOCTOR"})
-public void testUpdateDoctorProfile() throws Exception {
-    Map<String, String> doctorData = new HashMap<>();
-    doctorData.put("specialty", "Cardiologist");
-    doctorData.put("degree", "MD");
+    @WithMockUser(username = "testUser", password = "testPassword", authorities = { "DOCTOR" })
+    public void testUpdateDoctorProfile() throws Exception {
+        // Mock data for updating the doctor profile
+        Map<String, String> doctorData = new HashMap<>();
+        doctorData.put("specialty", "Cardiologist");
+        doctorData.put("degree", "MD");
 
-    mockMvc.perform(put("/api/users/profile/{userId}/doctor", 1L)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(doctorData)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("Doctor profile updated successfully"))
-            .andExpect(result -> {
-                System.out.println(result.getResponse().getContentAsString());
-            });
+        // Perform the PUT request to update the doctor profile
+        mockMvc.perform(put("/api/users/profile/{userId}/doctor", 1L)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(doctorData)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Doctor profile updated successfully"));
 
-    verify(userRepository, times(1)).save(any(User.class));
-}
-
-    
-
+        // Verify that the UserRepository's save method is called once
+        verify(userRepository, times(1)).save(any(User.class));
+    }
 
     @Test
     @WithMockUser(username = "testUser", password = "testPassword")
@@ -167,8 +162,8 @@ public void testUpdateDoctorProfile() throws Exception {
         friend.setId(2L);
 
         User currentUser = new User();
-    currentUser.setId(1L);
-    currentUser.getFollowing().add(friend);
+        currentUser.setId(1L);
+        currentUser.getFollowing().add(friend);
 
         when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
         when(userRepository.findById(1L)).thenReturn(Optional.of(currentUser));
@@ -176,7 +171,6 @@ public void testUpdateDoctorProfile() throws Exception {
         mockMvc.perform(put("/api/users/unfollowing/{userId}", 2L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("You have unfollowed user with ID: 2"));
-
 
         verify(userRepository, times(1)).save(any(User.class));
     }

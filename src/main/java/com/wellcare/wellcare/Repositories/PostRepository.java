@@ -18,7 +18,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("select p from Post p where p.user.id = :userId")
     public Page<Post> findByUserId(@Param("userId") Long userId, Pageable pageable);
 
-    @Query("SELECT p FROM Post p JOIN p.user u JOIN u.role r WHERE r.name = :role ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Post p JOIN User u WHERE u.role = :role ORDER BY p.createdAt DESC")
     Optional<List<Post>> findAllPostsByRole(@Param("role") ERole role);
 
     @Query("SELECT DISTINCT p FROM Post p LEFT JOIN FETCH p.likes LEFT JOIN FETCH p.comments")
