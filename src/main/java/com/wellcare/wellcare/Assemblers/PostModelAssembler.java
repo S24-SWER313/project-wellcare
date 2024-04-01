@@ -11,14 +11,14 @@ import com.wellcare.wellcare.Models.Post;
 
 @Component
 public class PostModelAssembler implements RepresentationModelAssembler<Post, EntityModel<Post>> {
-
+    
     @Override
     public EntityModel<Post> toModel(Post post) {
         try {
 
             return EntityModel.of(
                     post,
-                    linkTo(methodOn(PostController.class).getPostsByUserId(post.getUser().getId())).withRel("allPosts"),
+                    linkTo(methodOn(PostController.class).getPostsByUserId(post.getUser().getId(), null)).withRel("allPosts"),
                     linkTo(methodOn(PostController.class).toggleLikePost(null, post.getId())).withRel("toggleLike"),
                     linkTo(methodOn(PostController.class).toggleSavePost(null, post.getId())).withRel("toggleSave"));
 

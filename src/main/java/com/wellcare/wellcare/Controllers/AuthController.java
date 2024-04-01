@@ -80,6 +80,14 @@ public class AuthController {
             user.setDegree(signUpRequest.getDegree());
             user.setSpecialty(signUpRequest.getSpecialty());
             userRole = new Role(ERole.DOCTOR);
+            if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null
+                    || signUpRequest.getAttachment() == null) {
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Error: Doctor specialty, degree, and attachment are required!"));
+            }
+            user.setDegree(signUpRequest.getDegree());
+            user.setSpecialty(signUpRequest.getSpecialty());
+            user.setAttachment(signUpRequest.getAttachment());
         } else {
             userRole = new Role(ERole.PATIENT);
         }

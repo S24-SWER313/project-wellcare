@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -53,33 +52,28 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
+
     private String image;
 
     @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "role_id")
-    private Role role;
-
+    private String attachment;
     private String degree;
     private String specialty;
 
+    @ManyToOne
+    @JoinColumn(name = "role_id")
+    private Role role;
+
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "user_following",
-        joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "following_id")
-    )
+    @JoinTable(name = "user_following", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "following_id"))
     @JsonIgnoreProperties({ "password", "email", "mobile", "bio", "gender", "image", "role",
-        "followers", "friends", "savedPost" })
+            "followers", "friends", "savedPost" })
     private List<User> following = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "user_followers",
-        joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "follower_id")
-    )
+    @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
     @JsonIgnoreProperties({ "password", "email", "mobile", "bio", "gender", "image", "role",
-        "followers", "friends", "savedPost" })
+            "followers", "friends", "savedPost" })
     private List<User> followers = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
@@ -100,6 +94,22 @@ public class User {
         this.name = name;
         this.password = password;
         this.email = email;
+        this.role = role;
+    }
+
+    public User(
+            String username,
+            String name,
+            String password,
+            String email, String attachment, String degree,
+            String specialty, Role role) {
+        this.username = username;
+        this.name = name;
+        this.password = password;
+        this.email = email;
+        this.attachment = attachment;
+        this.degree = degree;
+        this.specialty = specialty;
         this.role = role;
     }
 
