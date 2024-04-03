@@ -1,5 +1,7 @@
 package com.wellcare.wellcare.Security;
 
+import static org.springframework.security.config.Customizer.*;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -55,7 +57,7 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-
+                .cors(withDefaults()).csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests((requests) -> requests
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/users/profile/*/doctor").hasAuthority("DOCTOR")
