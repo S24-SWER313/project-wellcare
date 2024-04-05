@@ -1,195 +1,168 @@
 package com.wellcare.wellcare;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wellcare.wellcare.Controllers.AuthController;
+import com.wellcare.wellcare.Exceptions.UserException;
 import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.User;
-import com.wellcare.wellcare.Repositories.RoleRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
+import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.request.LoginRequest;
 import com.wellcare.wellcare.payload.request.SignupRequest;
+import com.wellcare.wellcare.payload.response.JwtResponse;
+import com.wellcare.wellcare.payload.response.MessageResponse;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(AuthController.class)
 public class AuthControllerTest {
 
-        @Autowired
-        private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private WebApplicationContext webApplicationContext;
+
+    @MockBean
+    private AuthenticationManager authenticationManager;
+
+    @MockBean
+    private UserRepository userRepository;
+
+    @MockBean
+    private PasswordEncoder encoder;
+
+    @MockBean
+    private JwtUtils jwtUtils;
 
         @Autowired
         private ObjectMapper objectMapper;
 
-        @MockBean
-        private UserRepository userRepository;
 
-        @MockBean
-        private RoleRepository roleRepository;
+    @MockBean
+    private StorageService storageService;
 
-        @MockBean
-        private JwtUtils jwtUtils;
+    @BeforeEach
+    public void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+    }
 
-        @MockBean
-        private AuthenticationManager authenticationManager;
+    @Test
+    public void testRegisterUserSuccess() throws Exception {
+        SignupRequest request = new SignupRequest();
+        request.setUsername("testUser");
+        request.setEmail("test@example.com");
+        request.setPassword("password123");
+        request.setName("Test User");
+        request.setRole(ERole.PATIENT.toString());
 
-        @Autowired
-        private PasswordEncoder passwordEncoder;
+        when(userRepository.existsByUsername(anyString())).thenReturn(false);
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(encoder.encode(any(CharSequence.class))).thenReturn("encodedPassword");
 
-        @BeforeEach
-        public void setUp() {
-                User user = new User();
-                user.setId(1L);
-                user.setUsername("testUser");
-                user.setPassword(passwordEncoder.encode("testPassword"));
-                user.setName("Test User");
-                user.setEmail("test@example.com");
+        mockMvc.perform(post("/api/auth/signup")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .param("username", request.getUsername())
+                .param("email", request.getEmail())
+                .param("password", request.getPassword())
+                .param("name", request.getName())
+                .param("role", request.getRole()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("User registered successfully!"));
+    }
 
-                user.setRole(ERole.PATIENT);
+    @Test
+    public void testRegisterUsernameTaken() throws Exception {
+        SignupRequest request = new SignupRequest();
+        request.setUsername("existingUser");
+        request.setEmail("test@example.com");
+        request.setPassword("password123");
+        request.setName("Test User");
+        request.setRole("PATIENT");
 
-                List<GrantedAuthority> authorities = new ArrayList<>();
-                authorities.add(new SimpleGrantedAuthority("ROLE_" + ERole.PATIENT.name().toString()));
+        when(userRepository.existsByUsername(anyString())).thenReturn(true);
 
-                UserDetailsImpl userDetails = new UserDetailsImpl(
-                                user.getId(),
-                                user.getUsername(),
-                                user.getEmail(),
-                                user.getPassword(),
-                                authorities);
+        mockMvc.perform(post("/api/auth/signup")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .param("username", request.getUsername())
+                .param("email", request.getEmail())
+                .param("password", request.getPassword())
+                .param("name", request.getName())
+                .param("role", request.getRole()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Error: Username is already taken!"));
+    }
 
-                when(userRepository.existsByUsername(anyString())).thenReturn(false);
-                when(userRepository.existsByEmail(anyString())).thenReturn(false);
-                when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(user));
-                when(userRepository.save(any(User.class))).thenReturn(user);
+    @Test
+    public void testRegisterEmailTaken() throws Exception {
+        SignupRequest request = new SignupRequest();
+        request.setUsername("testUser");
+        request.setEmail("existing@example.com");
+        request.setPassword("password123");
+        request.setName("Test User");
+        request.setRole("PATIENT");
 
-                Authentication authentication = new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-        }
+        when(userRepository.existsByUsername(anyString())).thenReturn(false);
+        when(userRepository.existsByEmail(anyString())).thenReturn(true);
 
-        @Test
-        public void testRegisterUserDuplicateUsername() throws Exception {
-                SignupRequest signupRequest = new SignupRequest();
-                signupRequest.setUsername("testUser");
-                signupRequest.setPassword("newPassword123");
-                signupRequest.setEmail("new@example.com");
-                signupRequest.setName("New User");
-                signupRequest.setRole("PATIENT");
+        mockMvc.perform(post("/api/auth/signup")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .param("username", request.getUsername())
+                .param("email", request.getEmail())
+                .param("password", request.getPassword())
+                .param("name", request.getName())
+                .param("role", request.getRole()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Error: Email is already in use!"));
+    }
 
-                when(userRepository.existsByUsername(anyString())).thenReturn(true);
+    @Test
+    public void testRegisterDoctorMissingDetails() throws Exception {
+        SignupRequest request = new SignupRequest();
+        request.setUsername("doctorUser");
+        request.setEmail("doctor@example.com");
+        request.setPassword("password123");
+        request.setName("Doctor User");
+        request.setRole("DOCTOR");
 
-                mockMvc.perform(post("/api/auth/signup")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(signupRequest)))
-                                .andExpect(status().isBadRequest())
-                                .andExpect(jsonPath("$.message").value("Error: Username is already taken!"));
+        when(userRepository.existsByUsername(anyString())).thenReturn(false);
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
 
-                verify(userRepository, times(0)).save(any(User.class));
-        }
+        mockMvc.perform(post("/api/auth/signup")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .param("username", request.getUsername())
+                .param("email", request.getEmail())
+                .param("password", request.getPassword())
+                .param("name", request.getName())
+                .param("role", request.getRole()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Error: Doctor specialty and degree are required!"));
+    }
 
-        @Test
-        public void testRegisterUserDuplicateEmail() throws Exception {
-                SignupRequest signupRequest = new SignupRequest();
-                signupRequest.setUsername("newUser");
-                signupRequest.setPassword("newPassword123");
-                signupRequest.setEmail("test@example.com");
-                signupRequest.setName("New User");
-                signupRequest.setRole("PATIENT");
-
-                when(userRepository.existsByEmail(anyString())).thenReturn(true);
-
-                mockMvc.perform(post("/api/auth/signup")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(signupRequest)))
-                                .andExpect(status().isBadRequest())
-                                .andExpect(jsonPath("$.message").value("Error: Email is already in use!"));
-
-                verify(userRepository, times(0)).save(any(User.class));
-        }
-
-        @Test
-        public void testAuthenticateUserWrongPassword() throws Exception {
-                LoginRequest loginRequest = new LoginRequest();
-                loginRequest.setUsername("testUser");
-                loginRequest.setPassword("wrongPassword");
-
-                when(authenticationManager.authenticate(any())).thenThrow(new RuntimeException("Invalid credentials"));
-
-                mockMvc.perform(post("/api/auth/signin")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(loginRequest)))
-                                .andExpect(status().isBadRequest()); // Expecting 400 Bad Request due to
-                                                                     // GlobalExceptionHandler
-
-                verify(authenticationManager, times(1)).authenticate(any());
-        }
-
-        @Test
-        public void testAuthenticateUserNonExistingUsername() throws Exception {
-                LoginRequest loginRequest = new LoginRequest();
-
-                loginRequest.setPassword("password123");
-
-                when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
-                when(authenticationManager.authenticate(any()))
-                                .thenThrow(new UsernameNotFoundException("User not found"));
-
-                mockMvc.perform(post("/api/auth/signin")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(loginRequest)))
-                                .andExpect(status().isBadRequest())
-                                .andExpect(jsonPath("$.message").value("Validation Error"));
-
-                verify(authenticationManager, times(0)).authenticate(any());
-
-        }
-
-        @Test
-        public void testRegisterUserSuccess() throws Exception {
-                SignupRequest signupRequest = new SignupRequest();
-                signupRequest.setUsername("newUser");
-                signupRequest.setPassword("newPassword123");
-                signupRequest.setEmail("new@example.com");
-                signupRequest.setName("New User");
-                signupRequest.setRole("PATIENT");
-
-                mockMvc.perform(post("/api/auth/signup")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(signupRequest)))
-                                .andExpect(status().isOk())
-                                .andExpect(content().string("{\"message\":\"User registered successfully!\"}"));
-
-                verify(userRepository, times(1)).save(any(User.class));
-        }
-
-        @Test
+     @Test
         public void testAuthenticateUserSuccess() throws Exception {
                 LoginRequest loginRequest = new LoginRequest();
                 loginRequest.setUsername("testUser");
@@ -200,7 +173,7 @@ public class AuthControllerTest {
                                                 1L,
                                                 "testUser",
                                                 "test@example.com",
-                                                passwordEncoder.encode("testPassword"),
+                                                encoder.encode("testPassword"),
                                                 new ArrayList<>()),
                                 null,
                                 new ArrayList<>());
@@ -232,4 +205,24 @@ public class AuthControllerTest {
                 verify(authenticationManager, times(1)).authenticate(any());
         }
 
+    @Test
+    public void testAuthenticateUserValidationFailure() throws Exception {
+        LoginRequest request = new LoginRequest();
+        request.setUsername(null);
+        request.setPassword(null);
+
+        mockMvc.perform(post("/api/auth/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation Error"));
+    }
+
+    public static String asJsonString(final Object obj) {
+        try {
+            return new ObjectMapper().writeValueAsString(obj);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

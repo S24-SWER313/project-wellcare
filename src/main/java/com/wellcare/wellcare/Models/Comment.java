@@ -36,8 +36,9 @@ public class Comment {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    @JsonIgnoreProperties({ "name", "degree", "specialty","password", "email", "mobile", "bio", "gender", "image", "role",
-    "followers", "following", "savedPost" })
+    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
+    "role",
+    "attachment","friends","friendsNumber", "savedPost" })
     private User user;
 
     private long noOfLikes;
@@ -47,8 +48,9 @@ public class Comment {
 
     @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JoinTable(name = "comment_likes", joinColumns = @JoinColumn(name = "comment_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
-    @JsonIgnoreProperties({ "name", "degree", "specialty","password", "email", "mobile", "bio", "gender", "image", "role",
-    "followers", "following", "savedPost" })
+    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
+    "role",
+    "attachment","friends","friendsNumber", "savedPost" })
     private Set<User> commentLikes = new HashSet<>();
 
     @Column(name = "created_at", nullable = false)

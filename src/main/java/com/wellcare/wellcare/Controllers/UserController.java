@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -58,7 +59,7 @@ public class UserController {
     @PutMapping("/profile/{userId}")
     @Transactional
     public ResponseEntity<MessageResponse> updateUserProfile(@PathVariable Long userId,
-            @Valid @ModelAttribute User updatedUser,
+             @Valid @ModelAttribute User updatedUser,
             @RequestParam(value = "file", required = false) MultipartFile file) {
         // Get the authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -199,62 +200,6 @@ public class UserController {
         }
     }
 
-    @PutMapping("/following/{userId}")
-    @Transactional
-    public ResponseEntity<MessageResponse> followUser(@PathVariable Long userId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        Optional<User> friendOptional = userRepository.findById(userId);
-        Optional<User> currentUserOptional = userRepository.findById(userDetails.getId());
-
-        if (friendOptional.isEmpty() || currentUserOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User to befriend not found"));
-        }
-
-        User friend = friendOptional.get();
-        User currentUser = currentUserOptional.get();
-
-        if (currentUser.getFollowing().contains(friend)) {
-            return ResponseEntity.badRequest()
-                    .body(new MessageResponse("You are already following the user with ID: " + userId));
-        }
-
-        currentUser.getFollowing().add(friend);
-        friend.getFollowers().add(currentUser);
-
-        userRepository.save(currentUser);
-
-        return ResponseEntity.ok().body(new MessageResponse("You started following user with ID: " + userId));
-    }
-
-    @PutMapping("/unfollowing/{userId}")
-    @Transactional
-    public ResponseEntity<MessageResponse> unfriendUser(@PathVariable Long userId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        Optional<User> friendOptional = userRepository.findById(userId);
-        Optional<User> currentUserOptional = userRepository.findById(userDetails.getId());
-
-        if (friendOptional.isEmpty() || currentUserOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User to unfriend not found"));
-        }
-
-        User friend = friendOptional.get();
-        User currentUser = currentUserOptional.get();
-
-        if (!currentUser.getFollowing().contains(friend)) {
-            return ResponseEntity.badRequest()
-                    .body(new MessageResponse("You are not following the user with ID: " + userId));
-        }
-
-        currentUser.getFollowing().remove(friend);
-        friend.getFollowers().remove(currentUser);
-
-        userRepository.save(currentUser);
-
-        return ResponseEntity.ok().body(new MessageResponse("You have unfollowed user with ID: " + userId));
-    }
+   
 
 }

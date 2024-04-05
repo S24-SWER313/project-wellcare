@@ -22,7 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.User;
-import com.wellcare.wellcare.Repositories.RoleRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
@@ -50,29 +49,26 @@ public class AuthController {
     @Autowired
     JwtUtils jwtUtils;
 
-    @Autowired
-    RoleRepository roleRepository;
 
     @Autowired
     StorageService storageService;
 
     @PostMapping("/signup")
     @Transactional
-    public ResponseEntity<?> registerUser(@Valid @ModelAttribute SignupRequest signUpRequest,
-            @RequestParam(value = "file", required = false) MultipartFile attachment) {
+    public ResponseEntity<?> registerUser(@Valid @ModelAttribute SignupRequest signUpRequest) {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
         }
-
+    
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
         }
-
+    
         // Create new user's account
         User user = new User(signUpRequest.getUsername(), signUpRequest.getEmail(),
                 encoder.encode(signUpRequest.getPassword()));
         user.setName(signUpRequest.getName());
-
+    
         if (signUpRequest.getRole() != null && signUpRequest.getRole().equals("DOCTOR")) {
             if (signUpRequest.getDegree() == null || signUpRequest.getSpecialty() == null) {
                 return ResponseEntity.badRequest()
@@ -81,25 +77,25 @@ public class AuthController {
             user.setDegree(signUpRequest.getDegree());
             user.setSpecialty(signUpRequest.getSpecialty());
             user.setRole(ERole.DOCTOR);
-            System.out.println("testtttttttttttttttttttttttttttttttttttttt");
-            System.out.println("attachment" + attachment);
-            if (attachment != null) {
-                System.out.println("Received file: " + attachment.getOriginalFilename());
-                storageService.store(attachment);
+    
+            MultipartFile attachment = signUpRequest.getAttachment();
+            if (attachment != null && !attachment.isEmpty()) {
+                storageService.store(attachment); 
                 String filename = attachment.getOriginalFilename();
-                String url = "http://localhost:8080/files/" + filename;
+                String url = "http://localhost:8080/files/" + filename;// Assuming this returns the URL of the stored attachment
                 user.setAttachment(url); // Set the attachment URL only if an attachment is provided
             }
         } else {
             user.setRole(ERole.PATIENT);
         }
-
+    
         user.setGender(signUpRequest.getGender());
-
+    
         userRepository.save(user);
-
+    
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
+    
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {

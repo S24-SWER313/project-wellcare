@@ -2,6 +2,8 @@ package com.wellcare.wellcare.Models;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -18,6 +20,8 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.groups.Default;
@@ -44,6 +48,7 @@ public class User {
     @JsonIgnore
     private String password;
 
+    @NotBlank
     @Email(message = "Please enter a valid email address")
     private String email;
 
@@ -62,20 +67,19 @@ public class User {
     @Enumerated(EnumType.STRING)
     private ERole role;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_following", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "following_id"))
-    @JsonIgnoreProperties({ "password", "email", "mobile", "bio", "gender", "image", "role",
-            "followers", "friends", "savedPost" })
-    private List<User> following = new ArrayList<>();
+    @NotNull
+    @Min(0)
+    private Integer friendsNumber = 0;
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_followers", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "follower_id"))
-    @JsonIgnoreProperties({ "password", "email", "mobile", "bio", "gender", "image", "role",
-            "followers", "friends", "savedPost" })
-    private List<User> followers = new ArrayList<>();
+    @JoinTable(name = "user_friends", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "friend_id"))
+    @JsonIgnoreProperties({ "password", "name", "attachment", "degree", "specialty","friends", "friendsNumber","email", "mobile", "bio", "gender", "image", "role",
+            "savedPost" })
+    private List<User> friends = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_saved_posts", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "post_id"))
+    @JsonIgnore
     private List<Post> savedPost = new ArrayList<>();
 
     public User() {
@@ -111,6 +115,17 @@ public class User {
         this.role = role;
     }
 
+    public void incrementFriendsNumber() {
+        this.friendsNumber++;
+    }
+
+    public void decrementFriendsNumber() {
+        this.friendsNumber--;
+        if (this.friendsNumber < 0) {
+            this.friendsNumber = 0;
+        }
+    }
+
     @Override
     public String toString() {
         return "User [id=" + id + ", username=" + username + ", name=" + name
@@ -121,4 +136,8 @@ public class User {
 
     public interface Create extends Default {
     }
+
+  
+
+
 }

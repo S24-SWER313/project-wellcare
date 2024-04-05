@@ -209,17 +209,17 @@ public class PostController {
     @GetMapping("/feed")
     public ResponseEntity<PagedModel<EntityModel<Post>>> getFilteredPosts(
             @RequestParam(required = false) ERole role,
-            @RequestParam(required = false) Boolean followingOnly,
+            @RequestParam(required = false) Boolean friendsOnly,
             Pageable pageable,
             @AuthenticationPrincipal UserDetailsImpl userDetails) throws UserException {
 
         Page<Post> postsPage;
 
-        if (role != null && Boolean.TRUE.equals(followingOnly)) {
+        if (role != null && Boolean.TRUE.equals(friendsOnly)) {
             // Filter posts based on role and following
             if (userDetails != null && userDetails.getId() != null) {
-                List<User> followingUsers = userRepository.findById(userDetails.getId())
-                        .orElseThrow(() -> new UserException("User not found")).getFollowing();
+                List<User> friendsUsers = userRepository.findById(userDetails.getId())
+                        .orElseThrow(() -> new UserException("User not found")).getFriends();
 
                 List<User> usersByRole = userRepository.findAllUsersByRole(role);
                 if (usersByRole.isEmpty()) {
@@ -236,7 +236,7 @@ public class PostController {
                 }
 
                 List<Post> roleBasedPosts = postsPage.getContent().stream()
-                        .filter(post -> followingUsers.contains(post.getUser()))
+                        .filter(post -> friendsUsers.contains(post.getUser()))
                         .collect(Collectors.toList());
 
                 postsPage = new PageImpl<>(roleBasedPosts, pageable, roleBasedPosts.size());
@@ -257,11 +257,11 @@ public class PostController {
             if (postsPage.isEmpty()) {
                 throw new ResourceNotFoundException("Posts", null, new Throwable("No posts found for the given role"));
             }
-        } else if (Boolean.TRUE.equals(followingOnly)) {
+        } else if (Boolean.TRUE.equals(friendsOnly)) {
             // Filter posts to show only those from people the user follows
             if (userDetails != null && userDetails.getId() != null) {
                 List<User> followingUsers = userRepository.findById(userDetails.getId())
-                        .orElseThrow(() -> new UserException("User not found")).getFollowing();
+                        .orElseThrow(() -> new UserException("User not found")).getFriends();
                 postsPage = new PageImpl<>(postRepository.findAllByUserInOrderByCreatedAtDesc(followingUsers), pageable,
                         followingUsers.size());
             } else {
