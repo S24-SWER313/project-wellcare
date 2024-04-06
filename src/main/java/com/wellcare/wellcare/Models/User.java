@@ -2,8 +2,6 @@ package com.wellcare.wellcare.Models;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -74,11 +72,11 @@ public class User {
     @JsonIgnore
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_friends", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "friend_id"))
-    @JsonIgnoreProperties({ "password", "name", "attachment", "degree", "specialty","friends", "friendsNumber","email", "mobile", "bio", "gender", "image", "role",
+    @JsonIgnoreProperties({ "password", "name", "attachment", "degree", "specialty", "friends", "friendsNumber",
+            "email", "mobile", "bio", "gender", "image", "role",
             "savedPost" })
     private List<User> friends = new ArrayList<>();
 
-    
     public void addFriend(User friend) {
         if (!this.friends.contains(friend)) {
             this.friends.add(friend);
@@ -150,8 +148,5 @@ public class User {
 
     public interface Create extends Default {
     }
-
-  
-
 
 }

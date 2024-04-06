@@ -12,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -60,7 +59,7 @@ public class UserController {
     @PutMapping("/profile/{userId}")
     @Transactional
     public ResponseEntity<MessageResponse> updateUserProfile(@PathVariable Long userId,
-             @Valid @ModelAttribute User updatedUser,
+            @Valid @ModelAttribute User updatedUser,
             @RequestParam(value = "file", required = false) MultipartFile file) {
         // Get the authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -117,7 +116,7 @@ public class UserController {
         }
     }
 
-    // @PreAuthorize("hasRole('[DOCTOR]')")
+    @PreAuthorize("hasAuthority('DOCTOR')")
     @PutMapping("/profile/{userId}/doctor")
     @Transactional
     public ResponseEntity<MessageResponse> updateDoctorProfile(@PathVariable Long userId,
@@ -200,7 +199,5 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
     }
-
-   
 
 }

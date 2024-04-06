@@ -1,15 +1,13 @@
 package com.wellcare.wellcare;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +24,6 @@ import com.wellcare.wellcare.Repositories.RelationshipRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
-
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -48,11 +45,9 @@ public class RelationshipControllerTest {
     private RelationshipRepository relationshipRepository;
 
     @Autowired
-   private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper;
 
-   
-   
-   @Test
+    @Test
     public void testAddFriend() throws Exception {
         when(authTokenFilter.parseJwt(any())).thenReturn("mockedJwtToken");
         when(jwtUtils.getUserIdFromJwtToken("mockedJwtToken")).thenReturn(1L);
@@ -77,7 +72,6 @@ public class RelationshipControllerTest {
                 .content(objectMapper.writeValueAsString(friendData)))
                 .andExpect(status().isOk());
 
-
     }
 
     @Test
@@ -101,7 +95,7 @@ public class RelationshipControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
-   
+
     @Test
     public void testRemoveFriend() throws Exception {
         when(authTokenFilter.parseJwt(any())).thenReturn("mockedJwtToken");

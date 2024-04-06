@@ -1,7 +1,6 @@
 package com.wellcare.wellcare;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -17,7 +16,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -25,17 +23,13 @@ import org.springframework.web.context.WebApplicationContext;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wellcare.wellcare.Controllers.AuthController;
-import com.wellcare.wellcare.Exceptions.UserException;
 import com.wellcare.wellcare.Models.ERole;
-import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.request.LoginRequest;
 import com.wellcare.wellcare.payload.request.SignupRequest;
-import com.wellcare.wellcare.payload.response.JwtResponse;
-import com.wellcare.wellcare.payload.response.MessageResponse;
 
 @WebMvcTest(AuthController.class)
 public class AuthControllerTest {
@@ -58,9 +52,8 @@ public class AuthControllerTest {
     @MockBean
     private JwtUtils jwtUtils;
 
-        @Autowired
-        private ObjectMapper objectMapper;
-
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockBean
     private StorageService storageService;
@@ -162,48 +155,48 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Error: Doctor specialty and degree are required!"));
     }
 
-     @Test
-        public void testAuthenticateUserSuccess() throws Exception {
-                LoginRequest loginRequest = new LoginRequest();
-                loginRequest.setUsername("testUser");
-                loginRequest.setPassword("testPassword");
+    @Test
+    public void testAuthenticateUserSuccess() throws Exception {
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername("testUser");
+        loginRequest.setPassword("testPassword");
 
-                Authentication authentication = new UsernamePasswordAuthenticationToken(
-                                new UserDetailsImpl(
-                                                1L,
-                                                "testUser",
-                                                "test@example.com",
-                                                encoder.encode("testPassword"),
-                                                new ArrayList<>()),
-                                null,
-                                new ArrayList<>());
-                when(authenticationManager.authenticate(any())).thenReturn(authentication);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                new UserDetailsImpl(
+                        1L,
+                        "testUser",
+                        "test@example.com",
+                        encoder.encode("testPassword"),
+                        new ArrayList<>()),
+                null,
+                new ArrayList<>());
+        when(authenticationManager.authenticate(any())).thenReturn(authentication);
 
-                mockMvc.perform(post("/api/auth/signin")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.username").value("testUser"))
-                                .andExpect(jsonPath("$.email").value("test@example.com"));
+        mockMvc.perform(post("/api/auth/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("testUser"))
+                .andExpect(jsonPath("$.email").value("test@example.com"));
 
-                verify(authenticationManager, times(1)).authenticate(any());
-        }
+        verify(authenticationManager, times(1)).authenticate(any());
+    }
 
-        @Test
-        public void testAuthenticateUserInvalidCredentials() throws Exception {
-                LoginRequest loginRequest = new LoginRequest();
-                loginRequest.setUsername("testUser");
-                loginRequest.setPassword("wrongPassword");
+    @Test
+    public void testAuthenticateUserInvalidCredentials() throws Exception {
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername("testUser");
+        loginRequest.setPassword("wrongPassword");
 
-                when(authenticationManager.authenticate(any())).thenThrow(new RuntimeException("Invalid credentials"));
+        when(authenticationManager.authenticate(any())).thenThrow(new RuntimeException("Invalid credentials"));
 
-                mockMvc.perform(post("/api/auth/signin")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(loginRequest)))
-                                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/auth/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isBadRequest());
 
-                verify(authenticationManager, times(1)).authenticate(any());
-        }
+        verify(authenticationManager, times(1)).authenticate(any());
+    }
 
     @Test
     public void testAuthenticateUserValidationFailure() throws Exception {

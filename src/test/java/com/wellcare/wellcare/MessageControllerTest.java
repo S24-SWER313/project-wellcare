@@ -1,18 +1,15 @@
 package com.wellcare.wellcare;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageImpl;
@@ -70,7 +67,8 @@ public class MessageControllerTest {
         Message message = new Message();
         message.setContent("Test message content");
 
-        MockMultipartFile file = new MockMultipartFile("file", "test.txt", MediaType.TEXT_PLAIN_VALUE, "Test file content".getBytes());
+        MockMultipartFile file = new MockMultipartFile("file", "test.txt", MediaType.TEXT_PLAIN_VALUE,
+                "Test file content".getBytes());
 
         // Mocking behavior
         when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("mockedJwtToken");
@@ -78,16 +76,16 @@ public class MessageControllerTest {
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(new User())); // Mock loggedInUser
         when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(new User())); // Mock fromUser
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(new User())); // Mock toUser
-        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(anyLong(), anyLong())).thenReturn(new Relationship());
+        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(anyLong(), anyLong()))
+                .thenReturn(new Relationship());
 
         // Perform the request
         mockMvc.perform(MockMvcRequestBuilders.multipart("/api/message/sending/2")
-            .file(file)
-            .param("content", "Test message content")
-            .contentType(MediaType.MULTIPART_FORM_DATA))
-            .andExpect(MockMvcResultMatchers.status().isOk());
+                .file(file)
+                .param("content", "Test message content")
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(MockMvcResultMatchers.status().isOk());
     }
-
 
     @Test
     public void testUpdateMessage() throws Exception {
@@ -99,24 +97,24 @@ public class MessageControllerTest {
 
         // Perform the request
         mockMvc.perform(MockMvcRequestBuilders.put("/api/message/update/1")
-            .param("content", "Updated test message content")
-            .contentType(MediaType.MULTIPART_FORM_DATA))
-            .andExpect(MockMvcResultMatchers.status().isOk());
+                .param("content", "Updated test message content")
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(MockMvcResultMatchers.status().isOk());
     }
-
 
     @Test
     public void testGetRecentConversations() throws Exception {
         // Mocking behavior
         when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("mockedJwtToken");
         when(jwtUtils.getUserIdFromJwtToken(anyString())).thenReturn(1L);
-        when(messageRepository.findRecentConversations(anyLong(), any(Pageable.class))).thenReturn(new PageImpl<>(new ArrayList<>()));
+        when(messageRepository.findRecentConversations(anyLong(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(new ArrayList<>()));
 
         // Perform the request
         mockMvc.perform(MockMvcRequestBuilders.get("/api/message/recent"))
-            .andExpect(MockMvcResultMatchers.status().isOk());
+                .andExpect(MockMvcResultMatchers.status().isOk());
     }
-    
+
     @Test
     public void testGetMessagesWithUser() throws Exception {
         // Mocking behavior
@@ -124,11 +122,12 @@ public class MessageControllerTest {
         when(jwtUtils.getUserIdFromJwtToken(anyString())).thenReturn(1L);
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(new User())); // Mock loggedInUser
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(new User())); // Mock chatUser
-        when(messageRepository.findAllMessagesBetweenTwoUsers(anyLong(), anyLong())).thenReturn(new ArrayList<Message>());
+        when(messageRepository.findAllMessagesBetweenTwoUsers(anyLong(), anyLong()))
+                .thenReturn(new ArrayList<Message>());
 
         // Perform the request
         mockMvc.perform(MockMvcRequestBuilders.get("/api/message/2"))
-            .andExpect(MockMvcResultMatchers.status().isOk());
+                .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
     @Test
@@ -137,10 +136,11 @@ public class MessageControllerTest {
         when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("mockedJwtToken");
         when(jwtUtils.getUserIdFromJwtToken(anyString())).thenReturn(1L);
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(new User())); // Mock loggedInUser
-        when(messageRepository.getAllUnreadMessages(anyLong(), any(Pageable.class))).thenReturn(new PageImpl<>(new ArrayList<>()));
+        when(messageRepository.getAllUnreadMessages(anyLong(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(new ArrayList<>()));
 
         // Perform the request
         mockMvc.perform(MockMvcRequestBuilders.get("/api/message/unread"))
-            .andExpect(MockMvcResultMatchers.status().isOk());
+                .andExpect(MockMvcResultMatchers.status().isOk());
     }
 }

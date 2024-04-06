@@ -71,20 +71,20 @@ public class Post {
     @JoinColumn(name = "user_id")
     @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
             "role",
-            "attachment","friends","friendsNumber", "savedPost" })
+            "attachment", "friends", "friendsNumber", "savedPost" })
     private User user;
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(name = "post_likes", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
     @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
             "role",
-            "attachment","friends","friendsNumber", "savedPost" })
+            "attachment", "friends", "friendsNumber", "savedPost" })
     private Set<User> likes = new HashSet<>();
 
     @OneToMany(mappedBy = "post", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
-    "role",
-    "attachment","friends","friendsNumber", "savedPost" })
+            "role",
+            "attachment", "friends", "friendsNumber", "savedPost" })
     private List<Comment> comments = new ArrayList<>();
 
     public Post() {

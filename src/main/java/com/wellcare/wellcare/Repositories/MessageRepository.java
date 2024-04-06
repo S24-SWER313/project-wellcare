@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.wellcare.wellcare.Models.Message;
-import com.wellcare.wellcare.Models.User;
 
 import jakarta.transaction.Transactional;
 
@@ -30,16 +29,16 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     void updateStatusFromReadMessages(@Param("toUserId") Long toUserId, @Param("fromUserId") Long fromUserId);
 
     @Query(value = "select * " +
-    "from messages AS m " +
-    "INNER JOIN " +
-    "(select m.from_user_id as from_user_m1, max(m.time) as time_m1, count(*) as count " +
-    "from messages AS m " +
-    "where m.to_user_id = :userId AND m.status = 0 " + 
-    "GROUP BY m.from_user_id) as m1 " +
-    "ON m.from_user_id = m1.from_user_m1 and m.time = m1.time_m1 " +
-    "where m.to_user_id = :userId AND m.status = 0 " + 
-    "ORDER BY m.time DESC;", nativeQuery = true)
-Page<Message> getAllUnreadMessages(@Param("userId") Long loggedInUserId, Pageable pageable);
+            "from messages AS m " +
+            "INNER JOIN " +
+            "(select m.from_user_id as from_user_m1, max(m.time) as time_m1, count(*) as count " +
+            "from messages AS m " +
+            "where m.to_user_id = :userId AND m.status = 0 " +
+            "GROUP BY m.from_user_id) as m1 " +
+            "ON m.from_user_id = m1.from_user_m1 and m.time = m1.time_m1 " +
+            "where m.to_user_id = :userId AND m.status = 0 " +
+            "ORDER BY m.time DESC;", nativeQuery = true)
+    Page<Message> getAllUnreadMessages(@Param("userId") Long loggedInUserId, Pageable pageable);
 
     @Query(value = "select m.from_user_id, count(*) as count " +
             "from messages AS m " +
@@ -48,21 +47,9 @@ Page<Message> getAllUnreadMessages(@Param("userId") Long loggedInUserId, Pageabl
             "GROUP BY m.from_user_id " +
             "ORDER BY m.time DESC;", nativeQuery = true)
     List<Object[]> getCountOfUnreadMessagesByFromUser(@Param("userId") Long loggedInUserId);
-   
-   
-   
-   
+
     @Query("SELECT m FROM Message m WHERE (m.fromUser.id = :userId OR m.toUser.id = :userId) " +
-    "ORDER BY m.time DESC")
-Page<Message> findRecentConversations(@Param("userId") Long userId, Pageable pageable);
-
-
-
-
-
-
-
-
-
+            "ORDER BY m.time DESC")
+    Page<Message> findRecentConversations(@Param("userId") Long userId, Pageable pageable);
 
 }

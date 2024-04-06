@@ -65,6 +65,7 @@ public class CommentController {
 
     @Autowired
     StorageService storageService;
+
     @PostMapping("/{postId}")
     public ResponseEntity<EntityModel<Comment>> createComment(@Valid @ModelAttribute Comment comment,
             @RequestParam(value = "file", required = false) MultipartFile file, @PathVariable Long postId,
@@ -109,7 +110,6 @@ public class CommentController {
 
         }
     }
-
 
     // to update a comment
     @PutMapping("/{commentId}")
