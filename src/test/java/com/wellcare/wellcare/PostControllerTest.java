@@ -32,8 +32,6 @@ import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 
-import io.jsonwebtoken.JwtException;
-
 @SpringBootTest
 @AutoConfigureMockMvc
 public class PostControllerTest {
@@ -67,13 +65,11 @@ public class PostControllerTest {
         when(postRepository.save(any(Post.class))).thenReturn(post);
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/posts/new-post")
-            .contentType(MediaType.MULTIPART_FORM_DATA)
+                .contentType(MediaType.MULTIPART_FORM_DATA)
                 .param("content", "Test content")
                 .param("file", "test.jpg"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
-
-    
 
     @Test
     @WithMockUser(username = "testUser", roles = { "PATIENT" })
@@ -94,7 +90,7 @@ public class PostControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(updatedPost)))
                 .andExpect(MockMvcResultMatchers.status().isOk());
-                
+
     }
 
     @Test
@@ -112,34 +108,33 @@ public class PostControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
-   @Test
-public void testGetPostsByUserId() throws Exception {
-    // Prepare mock data
-    Long userId = 1L;
-    List<Post> posts = new ArrayList<>();
-    posts.add(new Post("Content 1"));
-    posts.add(new Post("Content 2"));
-    Page<Post> page = new PageImpl<>(posts);
-    when(postRepository.findByUserId(userId, null)).thenReturn(page);
+    @Test
+    public void testGetPostsByUserId() throws Exception {
+        // Prepare mock data
+        Long userId = 1L;
+        List<Post> posts = new ArrayList<>();
+        posts.add(new Post("Content 1"));
+        posts.add(new Post("Content 2"));
+        Page<Post> page = new PageImpl<>(posts);
+        when(postRepository.findByUserId(userId, null)).thenReturn(page);
 
-    mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", userId))
-            .andExpect(MockMvcResultMatchers.status().isOk())
-            .andReturn();
-}
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/{userId}", userId))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
+    }
 
+    @Test
+    public void testGetFilteredPosts() throws Exception {
+        List<Post> posts = new ArrayList<>();
+        posts.add(new Post("Filtered Content 1"));
+        posts.add(new Post("Filtered Content 2"));
+        Page<Post> page = new PageImpl<>(posts);
+        when(postRepository.findAllWithLikesAndComments(any(Pageable.class))).thenReturn(page);
 
-@Test
-public void testGetFilteredPosts() throws Exception {
-    List<Post> posts = new ArrayList<>();
-    posts.add(new Post("Filtered Content 1"));
-    posts.add(new Post("Filtered Content 2"));
-    Page<Post> page = new PageImpl<>(posts);
-    when(postRepository.findAllWithLikesAndComments(any(Pageable.class))).thenReturn(page);
-
-    mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/feed"))
-            .andExpect(MockMvcResultMatchers.status().isOk())
-            .andReturn();
-}
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/feed"))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
+    }
 
     @Test
     public void testToggleLikePost() throws Exception {

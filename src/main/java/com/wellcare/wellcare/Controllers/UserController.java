@@ -22,12 +22,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.wellcare.wellcare.Exceptions.UserException;
 import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
+import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
+import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
@@ -43,6 +47,12 @@ public class UserController {
 
     @Autowired
     private StorageService storageService;
+
+    @Autowired
+    private JwtUtils jwtUtils;
+
+    @Autowired
+    private AuthTokenFilter authTokenFilter;
 
     @GetMapping("/profile/{userId}")
     public ResponseEntity<?> getUserProfile(@PathVariable Long userId) {
@@ -116,43 +126,54 @@ public class UserController {
         }
     }
 
-    // @PreAuthorize("hasRole('[DOCTOR]')")
-    @PutMapping("/profile/{userId}/doctor")
+    @PreAuthorize("hasAuthority('DOCTOR')")
+    @PutMapping("/profile/doctor")
     @Transactional
-    public ResponseEntity<MessageResponse> updateDoctorProfile(@PathVariable Long userId,
-            @RequestBody Map<String, String> doctorData) {
+    public ResponseEntity<MessageResponse> updateDoctorProfile(HttpServletRequest request,
+            @ModelAttribute User doctorData,  @RequestParam(value = "file", required = false) MultipartFile file) throws UserException {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        logger.debug("Received request to update doctor profile for user ID: {}", userId);
+                String jwtToken = authTokenFilter.parseJwt(request);
+                System.out.println("Extracted JWT token: " + jwtToken);
+    
+                // Parse the JWT token to extract the userId
+                Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+                System.out.println("Extracted userId: " + userId);
+    
+                // Use the extracted userId to get the User object
+                Optional<User> existingUserOptional = userRepository.findById(userId);
+                User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
 
-        logger.info("Authorities: {}", userDetails.getAuthorities());
 
-        if (!userDetails.getId().equals(userId)) {
+
+        if (!user.getId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new MessageResponse("You are not authorized to update this profile"));
         }
 
-        if (!userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("DOCTOR"))) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new MessageResponse("You are not authorized to update doctor-specific data"));
-        }
-
         Optional<User> existingUser = userRepository.findById(userId);
         if (existingUser.isPresent()) {
-            User user = existingUser.get();
+            User user1 = existingUserOptional.get();
 
-            String specialty = doctorData.get("specialty");
-            String degree = doctorData.get("degree");
+            String specialty = doctorData.getSpecialty();
+            String degree = doctorData.getDegree();
 
             if (specialty != null) {
-                user.setSpecialty(specialty);
+                user1.setSpecialty(specialty);
             }
             if (degree != null) {
-                user.setDegree(degree);
+                user1.setDegree(degree);
+            }
+       
+            if (file != null && !file.isEmpty()) {
+                System.out.println("Received file: " + file.getOriginalFilename());
+                storageService.store(file);
+                String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
+                user1.setAttachment(imageUrl);
+            } else if (user1.getAttachment() != null) {
+                user1.setAttachment(user1.getAttachment());
             }
 
-            userRepository.save(user);
+            userRepository.save(user1);
 
             return ResponseEntity.ok().body(new MessageResponse("Doctor profile updated successfully"));
         } else {
@@ -198,64 +219,6 @@ public class UserController {
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
-    }
-
-    @PutMapping("/following/{userId}")
-    @Transactional
-    public ResponseEntity<MessageResponse> followUser(@PathVariable Long userId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        Optional<User> friendOptional = userRepository.findById(userId);
-        Optional<User> currentUserOptional = userRepository.findById(userDetails.getId());
-
-        if (friendOptional.isEmpty() || currentUserOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User to befriend not found"));
-        }
-
-        User friend = friendOptional.get();
-        User currentUser = currentUserOptional.get();
-
-        if (currentUser.getFollowing().contains(friend)) {
-            return ResponseEntity.badRequest()
-                    .body(new MessageResponse("You are already following the user with ID: " + userId));
-        }
-
-        currentUser.getFollowing().add(friend);
-        friend.getFollowers().add(currentUser);
-
-        userRepository.save(currentUser);
-
-        return ResponseEntity.ok().body(new MessageResponse("You started following user with ID: " + userId));
-    }
-
-    @PutMapping("/unfollowing/{userId}")
-    @Transactional
-    public ResponseEntity<MessageResponse> unfriendUser(@PathVariable Long userId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        Optional<User> friendOptional = userRepository.findById(userId);
-        Optional<User> currentUserOptional = userRepository.findById(userDetails.getId());
-
-        if (friendOptional.isEmpty() || currentUserOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User to unfriend not found"));
-        }
-
-        User friend = friendOptional.get();
-        User currentUser = currentUserOptional.get();
-
-        if (!currentUser.getFollowing().contains(friend)) {
-            return ResponseEntity.badRequest()
-                    .body(new MessageResponse("You are not following the user with ID: " + userId));
-        }
-
-        currentUser.getFollowing().remove(friend);
-        friend.getFollowers().remove(currentUser);
-
-        userRepository.save(currentUser);
-
-        return ResponseEntity.ok().body(new MessageResponse("You have unfollowed user with ID: " + userId));
     }
 
 }

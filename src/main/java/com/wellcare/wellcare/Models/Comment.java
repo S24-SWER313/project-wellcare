@@ -3,6 +3,7 @@ package com.wellcare.wellcare.Models;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.CascadeType;
@@ -31,24 +32,26 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @Pattern(regexp="(https?://.*\\.(?:png|jpg|gif|bmp|jpeg|mp4))", message="Attachment must be a valid photo or video URL")
+    @Pattern(regexp = "(https?://.*\\.(?:png|jpg|gif|bmp|jpeg|mp4))", message = "Attachment must be a valid photo or video URL")
     private String attachment;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    @JsonIgnoreProperties({ "name", "degree", "specialty","password", "email", "mobile", "bio", "gender", "image", "role",
-    "followers", "following", "savedPost" })
+    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
+            "role",
+            "attachment", "friends", "friendsNumber", "savedPost" })
     private User user;
 
     private long noOfLikes;
-    
+
     @Size(max = 500, message = "Content length must be less than or equal to 500 characters")
     private String content;
 
     @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JoinTable(name = "comment_likes", joinColumns = @JoinColumn(name = "comment_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
-    @JsonIgnoreProperties({ "name", "degree", "specialty","password", "email", "mobile", "bio", "gender", "image", "role",
-    "followers", "following", "savedPost" })
+    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
+            "role",
+            "attachment", "friends", "friendsNumber", "savedPost" })
     private Set<User> commentLikes = new HashSet<>();
 
     @Column(name = "created_at", nullable = false)
@@ -68,8 +71,6 @@ public class Comment {
             return true;
         }
     }
-    
-   
 
     public Comment() {
     }
