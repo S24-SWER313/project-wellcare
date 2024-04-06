@@ -2,6 +2,8 @@ package com.wellcare.wellcare.Repositories;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.wellcare.wellcare.Models.Message;
+import com.wellcare.wellcare.Models.User;
 
 import jakarta.transaction.Transactional;
 
@@ -36,7 +39,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     "ON m.from_user_id = m1.from_user_m1 and m.time = m1.time_m1 " +
     "where m.to_user_id = :userId AND m.status = 0 " + 
     "ORDER BY m.time DESC;", nativeQuery = true)
-List<Message> getAllUnreadMessages(@Param("userId") Long loggedInUserId);
+Page<Message> getAllUnreadMessages(@Param("userId") Long loggedInUserId, Pageable pageable);
 
     @Query(value = "select m.from_user_id, count(*) as count " +
             "from messages AS m " +
@@ -45,4 +48,21 @@ List<Message> getAllUnreadMessages(@Param("userId") Long loggedInUserId);
             "GROUP BY m.from_user_id " +
             "ORDER BY m.time DESC;", nativeQuery = true)
     List<Object[]> getCountOfUnreadMessagesByFromUser(@Param("userId") Long loggedInUserId);
+   
+   
+   
+   
+    @Query("SELECT m FROM Message m WHERE (m.fromUser.id = :userId OR m.toUser.id = :userId) " +
+    "ORDER BY m.time DESC")
+Page<Message> findRecentConversations(@Param("userId") Long userId, Pageable pageable);
+
+
+
+
+
+
+
+
+
+
 }

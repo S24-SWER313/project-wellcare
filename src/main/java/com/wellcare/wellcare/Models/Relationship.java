@@ -30,14 +30,14 @@ public class Relationship {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @JsonManagedReference
+    @JsonIgnore
     @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "user_one_id", referencedColumnName = "id")
     @JsonIgnoreProperties({"name", "attachment","degree","specialty","password", "email", "mobile", "bio", "gender", "image", "role",
     "friends","friendsNumber", "savedPost", "messages"})
     private User userOne;
 
-    @JsonManagedReference
+    @JsonIgnore
     @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "user_two_id", referencedColumnName = "id")
     @JsonIgnoreProperties({"name", "attachment","degree","specialty","password", "email", "mobile", "bio", "gender", "image", "role",
@@ -47,6 +47,7 @@ public class Relationship {
     @Column(name = "status", columnDefinition = "TINYINT DEFAULT 0", nullable = false)
     private int status;
 
+    @JsonIgnore
     @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "action_user_id", referencedColumnName = "id")
     @JsonIgnoreProperties({"name", "attachment","degree","specialty","password", "email", "mobile", "bio", "gender", "image", "role",

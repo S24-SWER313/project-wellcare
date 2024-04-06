@@ -65,11 +65,13 @@ public class Message {
     @Column(name = "time", nullable = false)
     private LocalDateTime time;
 
+    @JsonBackReference
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "relationship_id")
     @JsonIgnoreProperties({"messageList,userOne, userTwo, time"})
     private Relationship relationship;
 
+   
     public Message() {
     }
 }
