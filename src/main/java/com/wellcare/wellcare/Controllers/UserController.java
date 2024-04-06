@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -116,7 +117,7 @@ public class UserController {
         }
     }
 
-    // @PreAuthorize("hasRole('DOCTOR')")
+    // @PreAuthorize("hasRole('[DOCTOR]')")
     @PutMapping("/profile/{userId}/doctor")
     @Transactional
     public ResponseEntity<MessageResponse> updateDoctorProfile(@PathVariable Long userId,
@@ -124,6 +125,7 @@ public class UserController {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        logger.debug("Received request to update doctor profile for user ID: {}", userId);
 
         logger.info("Authorities: {}", userDetails.getAuthorities());
 
@@ -143,7 +145,6 @@ public class UserController {
 
             String specialty = doctorData.get("specialty");
             String degree = doctorData.get("degree");
-            String attachment = doctorData.get("attachment");
 
             if (specialty != null) {
                 user.setSpecialty(specialty);
