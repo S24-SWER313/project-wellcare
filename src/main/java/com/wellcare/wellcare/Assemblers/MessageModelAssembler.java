@@ -16,7 +16,7 @@ public class MessageModelAssembler implements RepresentationModelAssembler<Messa
     public EntityModel<Message> toModel(Message message) {
         try {
             EntityModel<Message> messageModel = EntityModel.of(message,
-                linkTo(methodOn(MessageController.class).getMessagesWithUser(message.getToUser().getId(), null)).withRel("messages"),
+                linkTo(methodOn(MessageController.class).getMessagesWithUser(message.getToUser().getId(), null)).withRel("messagesWithUser"),
                 linkTo(methodOn(MessageController.class).getUnreadMessages(null, null)).withRel("unreadMessages"));
             
             return messageModel;

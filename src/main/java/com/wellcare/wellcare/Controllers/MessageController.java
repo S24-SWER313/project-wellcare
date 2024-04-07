@@ -41,6 +41,7 @@ import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Storage.StorageService;
+import com.wellcare.wellcare.payload.response.MessageResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -54,7 +55,7 @@ public class MessageController {
 
     @Autowired
     private RelationshipRepository relationshipRepository;
-
+   
     @Autowired
     private UserRepository userRepository;
 
@@ -72,60 +73,53 @@ public class MessageController {
 
     @Transactional
     @PostMapping("/sending/{userId}")
-    public ResponseEntity<EntityModel<Message>> sendMessage(@Valid @PathVariable Long userId,
+    public ResponseEntity<EntityModel<?>> sendMessage(@Valid @PathVariable Long userId,
             @ModelAttribute Message message,
             @RequestParam(value = "file", required = false) MultipartFile[] files,
             HttpServletRequest request) {
         try {
             String jwtToken = authTokenFilter.parseJwt(request);
             Long loggedInUserId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-
+    
             User loggedInUser = userRepository.findById(loggedInUserId)
                     .orElseThrow(() -> new UserException("User not found"));
-
+    
             User toUser = userRepository.findById(userId)
-                    .orElseThrow(() -> new UserException("Recipient not found"));
-
-            Relationship relationship = relationshipRepository
-                    .findRelationshipByUserOneIdAndUserTwoId(loggedInUserId, userId);
-
-            if (relationship == null) {
-                throw new UserException(
-                        "No valid relationship found with the recipient. The friend request is still pending.");
-            }
-
+                    .orElseThrow(() -> new UserException("Recipient not found"));    
+                  
+            
             List<String> attachmentUrls = storeAttachments(files);
-
+    
             message.setContent(message.getContent());
             message.setFromUser(loggedInUser);
             message.setToUser(toUser);
             message.setTime(LocalDateTime.now());
             message.setAttachment(attachmentUrls);
-            message.setRelationship(relationship);
 
             Message savedMessage = messageRepository.save(message);
-
+    
             if (savedMessage != null) {
                 EntityModel<Message> messageModel = messageModelAssembler.toModel(savedMessage);
                 return ResponseEntity.ok(messageModel);
             }
-
+    
             throw new MessageException("Error sending message");
-
+    
         } catch (NumberFormatException e) {
             Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+            EntityModel<?> errorModel = EntityModel.of(new Message(), link);
             return ResponseEntity.badRequest().body(errorModel);
         } catch (UserException e) {
             Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+            EntityModel<?> errorModel = EntityModel.of(new Message(), link);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorModel);
         } catch (MessageException e) {
             Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+            EntityModel<?> errorModel = EntityModel.of(new Message(), link);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorModel);
         }
     }
+    
 
     @PutMapping("/update/{messageId}")
     public ResponseEntity<EntityModel<Message>> updateMessage(@Valid @PathVariable Long messageId,
@@ -139,13 +133,6 @@ public class MessageController {
                     .orElseThrow(() -> new MessageException("Message not found"));
 
             if (!message.getFromUser().getId().equals(userId)) {
-                Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-                EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
-                return ResponseEntity.badRequest().body(errorModel);
-            }
-
-            Relationship relationship = message.getRelationship(); // Get the relationship from the existing message
-            if (relationship == null) {
                 Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
                 EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
                 return ResponseEntity.badRequest().body(errorModel);
@@ -179,13 +166,15 @@ public class MessageController {
             User chatUser = userRepository.findById(chatUserId)
                     .orElseThrow(() -> new UserException("Chat user not found"));
 
+            updateMessageStatus(loggedInUser.getId(), chatUserId);
+
             List<Message> allMessagesBetweenTwoUsers = messageRepository
                     .findAllMessagesBetweenTwoUsers(loggedInUser.getId(), chatUserId);
 
-            allMessagesBetweenTwoUsers
-                    .forEach(message -> Hibernate.initialize(message.getRelationship().getMessageList()));
 
-            updateMessageStatus(loggedInUser.getId(), chatUserId);
+            // allMessagesBetweenTwoUsers
+            //         .forEach(message -> Hibernate.initialize(message.getRelationship().getMessageList()));
+
 
             List<EntityModel<Message>> messageModels = allMessagesBetweenTwoUsers.stream()
                     .map(messageModelAssembler::toModel)
@@ -248,11 +237,8 @@ public class MessageController {
 
             Page<Message> allUnreadMessages = messageRepository.getAllUnreadMessages(loggedInUser.getId(), pageable);
 
-            List<Message> allFriendsMessages = allUnreadMessages.stream()
-                    .filter(message -> message.getRelationship().getStatus() == 1)
-                    .collect(Collectors.toList());
 
-            List<EntityModel<Message>> messageModels = allFriendsMessages.stream()
+            List<EntityModel<Message>> messageModels = allUnreadMessages.getContent().stream()
                     .map(messageModelAssembler::toModel)
                     .collect(Collectors.toList());
 

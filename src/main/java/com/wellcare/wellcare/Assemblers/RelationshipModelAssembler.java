@@ -4,6 +4,13 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.RepresentationModelAssembler;
 import org.springframework.stereotype.Component;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import org.springframework.hateoas.CollectionModel;
+
 import com.wellcare.wellcare.Controllers.RelationshipController;
 import com.wellcare.wellcare.Controllers.RelationshipController;
 import com.wellcare.wellcare.Models.Relationship;
@@ -15,9 +22,11 @@ public class RelationshipModelAssembler implements RepresentationModelAssembler<
     @Override
     public EntityModel<Relationship> toModel(Relationship relationship) {
         return EntityModel.of(relationship,
-                linkTo(methodOn(RelationshipController.class).addFriend(null, null)).withRel("addFriend"),
-                linkTo(methodOn(RelationshipController.class).removeFriend(null, null)).withRel("removeFriend"),
-                linkTo(methodOn(RelationshipController.class).acceptFriend(null, null)).withRel("acceptFriend"),
-                linkTo(methodOn(RelationshipController.class).cancelFriendshipRequest(null, null)).withRel("cancelFriendshipRequest"));
+                        linkTo(methodOn(RelationshipController.class).getFriendRequests(null)).withRel("friendRequests"),
+                        linkTo(methodOn(RelationshipController.class).acceptFriend(null, relationship.getUserOne().getId())).withRel("acceptFriend"),
+                        linkTo(methodOn(RelationshipController.class).cancelFriendshipRequest(null, relationship.getUserOne().getId())).withRel("cancelFriendshipRequest")
+        );
     }
+
+    
 }

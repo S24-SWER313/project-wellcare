@@ -95,16 +95,16 @@ public class CommentController {
                 comment.setAttachment(url);
             }
 
-            comment.setPost(post);
 
-            Comment createdComment = commentRepository.save(comment);
-            post.getComments().add(createdComment);
+            commentRepository.save(comment);
+
+            post.getComments().add(comment);
             post.setNoOfComments(post.getNoOfComments() + 1);
             System.out.println("Incremented noOfComments to: " + post.getNoOfComments()); // Add logging
 
             postRepository.save(post);
 
-            return ResponseEntity.ok(commentModelAssembler.toModel(createdComment));
+            return ResponseEntity.ok(commentModelAssembler.toModel(comment));
         } catch (ResourceNotFoundException ex) {
             return ResponseEntity.notFound().build();
 
@@ -151,6 +151,7 @@ public class CommentController {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserException("User not found"));
 
+            
             Comment comment = commentRepository.findById(commentId)
                     .orElseThrow(() -> new CommentException("Comment not found"));
 
@@ -158,12 +159,16 @@ public class CommentController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
             }
 
+            Optional<Post> postOptional = postRepository.findPostByCommentId(commentId);
+            if (postOptional.isEmpty()) {
+                throw new CommentException("Post not found for the comment!");
+            }
             comment.getCommentLikes().clear();
 
-            Post post = comment.getPost();
+
+            Post post = postOptional.get();
             post.getComments().remove(comment);
             post.setNoOfComments(post.getNoOfComments() - 1);
-            postRepository.save(post);
 
             commentRepository.deleteById(commentId);
 

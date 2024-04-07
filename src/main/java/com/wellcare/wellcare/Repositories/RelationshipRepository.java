@@ -23,7 +23,7 @@ public interface RelationshipRepository extends JpaRepository<Relationship, Long
 
         List<Relationship> findAllByUserOneIdOrUserTwoId(Long userOneId, Long userTwoId);
 
-        @Query("SELECT r FROM Relationship r LEFT JOIN FETCH r.messageList WHERE (r.userOne.id = :userOneId AND r.userTwo.id = :userTwoId) OR (r.userOne.id = :userTwoId AND r.userTwo.id = :userOneId) AND r.status = :status")
+        @Query("SELECT r FROM Relationship r WHERE (r.userOne.id = :userOneId AND r.userTwo.id = :userTwoId) OR (r.userOne.id = :userTwoId AND r.userTwo.id = :userOneId) AND r.status = :status")
         Relationship findRelationshipWithFriendWithStatus(@Param("userOneId") Long userOneId,
                         @Param("userTwoId") Long userTwoId, @Param("status") int status);
 
@@ -39,4 +39,8 @@ public interface RelationshipRepository extends JpaRepository<Relationship, Long
 
         @Query("SELECT r FROM Relationship AS r WHERE (r.userOne.id = :id OR r.userTwo.id = :id) AND r.status = 0")
         List<Relationship> findAllRequestedForFriendUsers(Long id);
+
+        List<Relationship> findRelationshipsByUserTwoIdAndStatus(Long userTwoId, int status);
+
 }
+

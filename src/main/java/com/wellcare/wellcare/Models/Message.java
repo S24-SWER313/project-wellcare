@@ -9,9 +9,11 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -34,22 +36,20 @@ public class Message {
         @GeneratedValue(strategy = GenerationType.IDENTITY)
         private Long id;
 
-        @JsonManagedReference
+        
         @ManyToOne(optional = false, fetch = FetchType.EAGER)
-        @JoinColumn(name = "from_user_id", referencedColumnName = "id")
+        @JoinColumn(name = "from_user_id")
         @JsonIgnoreProperties({ "name", "attachment", "degree", "specialty", "password", "email", "mobile", "bio",
                         "gender", "image", "role", "friends", "friendsNumber", "savedPost", "messages" })
         private User fromUser;
 
-        @JsonManagedReference
+        
         @ManyToOne(optional = false, fetch = FetchType.EAGER)
-        @JoinColumn(name = "to_user_id", referencedColumnName = "id")
+        @JoinColumn(name = "to_user_id")
         @JsonIgnoreProperties({ "name", "attachment", "degree", "specialty", "password", "email", "mobile", "bio",
                         "gender", "image", "role", "friends", "friendsNumber", "savedPost", "messages" })
         private User toUser;
 
-        @Column(name = "subject")
-        private String subject;
 
         @NotBlank(message = "Content cannot be blank")
         @Size(max = 1000, message = "Content length must be less than or equal to 1000 characters")
@@ -68,12 +68,8 @@ public class Message {
         @Column(name = "time", nullable = false)
         private LocalDateTime time;
 
-        @JsonBackReference
-        @ManyToOne(fetch = FetchType.EAGER)
-        @JoinColumn(name = "relationship_id")
-        @JsonIgnoreProperties({ "messageList", "userOne", "userTwo", "time" })
-        private Relationship relationship;
-
         public Message() {
         }
+
+      
 }

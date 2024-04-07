@@ -5,6 +5,9 @@ import java.util.List;
 
 import javax.validation.constraints.NotNull;
 
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -31,7 +34,6 @@ public class Relationship {
         private Long id;
 
         @NotNull(message = "User one must not be null")
-        @JsonIgnore
         @ManyToOne(optional = false, fetch = FetchType.EAGER)
         @JoinColumn(name = "user_one_id", referencedColumnName = "id")
         @JsonIgnoreProperties({ "name", "attachment", "degree", "specialty", "password", "email", "mobile", "bio",
@@ -39,7 +41,6 @@ public class Relationship {
         private User userOne;
 
         @NotNull(message = "User two must not be null")
-        @JsonIgnore
         @ManyToOne(optional = false, fetch = FetchType.EAGER)
         @JoinColumn(name = "user_two_id", referencedColumnName = "id")
         @JsonIgnoreProperties({ "name", "attachment", "degree", "specialty", "password", "email", "mobile", "bio",
@@ -50,7 +51,6 @@ public class Relationship {
         private int status;
 
         @NotNull(message = "Action user must not be null")
-        @JsonIgnore
         @ManyToOne(optional = false, fetch = FetchType.EAGER)
         @JoinColumn(name = "action_user_id", referencedColumnName = "id")
         @JsonIgnoreProperties({ "name", "attachment", "degree", "specialty", "password", "email", "mobile", "bio",
@@ -61,10 +61,7 @@ public class Relationship {
         @Column(name = "time", nullable = false)
         private LocalDateTime time;
 
-        @JsonIgnore
-        @OneToMany(mappedBy = "relationship", targetEntity = Message.class, cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-        private List<Message> messageList;
-
+      
         public Relationship() {
         }
 }
