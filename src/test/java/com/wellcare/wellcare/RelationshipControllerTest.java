@@ -70,15 +70,45 @@ public class RelationshipControllerTest {
         friendData.put("degree", "MD");
 
         // Performing the PUT request to add a friend
-        mockMvc.perform(put("/api/relationship/adding/{friendUserId}", 2L)
+        mockMvc.perform(put("/api/relationship/new-friend/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(friendData)))
                 .andExpect(status().isOk());
 
     }
   
-    
-    
+    @Test
+    public void testAddFriendSelf() throws Exception {
+        when(authTokenFilter.parseJwt(any())).thenReturn("mockedJwtToken");
+        when(jwtUtils.getUserIdFromJwtToken("mockedJwtToken")).thenReturn(1L);
+
+        mockMvc.perform(put("/api/relationship/new-friend/{friendUserId}", 1L)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }  
+
+    @Test
+    public void testAddFriendRelationshipExists() throws Exception {
+        when(authTokenFilter.parseJwt(any())).thenReturn("mockedJwtToken");
+        when(jwtUtils.getUserIdFromJwtToken("mockedJwtToken")).thenReturn(1L);
+
+        User loggedInUser = new User();
+        loggedInUser.setId(1L);
+        when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(loggedInUser));
+
+        User friendUser = new User();
+        friendUser.setId(2L);
+        when(userRepository.findById(2L)).thenReturn(java.util.Optional.of(friendUser));
+
+        Relationship existingRelationship = new Relationship();
+        existingRelationship.setStatus(1);
+        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(loggedInUser.getId(), friendUser.getId())).thenReturn(existingRelationship);
+
+        mockMvc.perform(put("/api/relationship/new-friend/{friendUserId}", 2L)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+  
     @Test
     public void testGetFriendRequests() throws Exception {
         String jwtToken = "mockedJwtToken";
@@ -126,7 +156,7 @@ public class RelationshipControllerTest {
         existingRelationship.setStatus(0);
         when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(existingRelationship);
 
-        mockMvc.perform(put("/api/relationship/adding/{friendUserId}", 2L)
+        mockMvc.perform(put("/api/relationship/new-friend/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
@@ -156,7 +186,7 @@ public class RelationshipControllerTest {
 
         when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(relationship);
 
-        mockMvc.perform(delete("/api/relationship/removing/{friendUserId}", 2L)
+        mockMvc.perform(delete("/api/relationship/friends/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
@@ -210,12 +240,11 @@ public class RelationshipControllerTest {
 
         when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(2L, 1L)).thenReturn(relationship);
 
-        mockMvc.perform(put("/api/relationship/friend-cancel/{friendUserId}", 2L)
+        mockMvc.perform(put("/api/relationship/friend-request-cancel/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
  
-
 
 }

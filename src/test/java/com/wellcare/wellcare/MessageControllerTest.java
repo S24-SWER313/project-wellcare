@@ -77,7 +77,7 @@ public class MessageControllerTest {
         mockCommonBehaviors();
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/message/sending/2")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/messages/new-message/2")
                 .file(file)
                 .param("content", "Test message content")
                 .contentType(MediaType.MULTIPART_FORM_DATA))
@@ -97,7 +97,7 @@ public class MessageControllerTest {
         when(messageRepository.findById(anyLong())).thenReturn(Optional.of(new Message()));
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.put("/api/message/update/1")
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/messages/1")
                 .param("content", "Updated test message content")
                 .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(MockMvcResultMatchers.status().isOk());
@@ -111,7 +111,7 @@ public class MessageControllerTest {
                 .thenReturn(new PageImpl<>(new ArrayList<>()));
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/message/recent"))
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/messages/recent"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
@@ -123,7 +123,7 @@ public class MessageControllerTest {
                 .thenReturn(new ArrayList<Message>());
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/message/2"))
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/messages/chat/2"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
@@ -135,7 +135,7 @@ public class MessageControllerTest {
                 .thenReturn(new PageImpl<>(new ArrayList<>()));
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/message/unread"))
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/messages/unread"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
@@ -146,7 +146,7 @@ public class MessageControllerTest {
         when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/message/sending/2")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/messages/new-message/2")
                 .file(new MockMultipartFile("file", "test.txt", MediaType.TEXT_PLAIN_VALUE,
                         "Test file content".getBytes()))
                 .param("content", "Test message content")
@@ -161,7 +161,7 @@ public class MessageControllerTest {
         when(messageRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.put("/api/message/update/2")
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/messages/2")
                 .param("content", "Updated test message content")
                 .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(MockMvcResultMatchers.status().isOk());
@@ -175,7 +175,7 @@ public class MessageControllerTest {
                 .thenReturn(new PageImpl<>(Collections.emptyList()));
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/message/recent"))
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/messages/recent"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
@@ -187,7 +187,7 @@ public class MessageControllerTest {
                 .thenReturn(new PageImpl<>(Collections.emptyList()));
 
         // Perform the request
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/message/unread"))
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/messages/unread"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 }

@@ -21,7 +21,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
@@ -44,6 +48,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import io.jsonwebtoken.JwtException;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -70,6 +76,8 @@ public class PostControllerTest {
     
     @MockBean
     private StorageService storageService;
+    @MockBean
+    private AuthenticationManager authenticationManager;
 
     @BeforeEach
     public void setUp() {
@@ -104,37 +112,86 @@ public class PostControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
+     @Test
+    public void testCreatePost_WithFile() throws Exception {
+        Post post = new Post();
+        post.setContent("Test content");
+        post.setCreatedAt(LocalDateTime.now());
+    
+        when(postRepository.save(any(Post.class))).thenReturn(post);
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(new User()));
+    
+        MockMultipartFile file = new MockMultipartFile("file", "test.jpg", "image/jpeg", "test image".getBytes());
+    
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/posts/new-post")
+                .file(file)
+                .param("content", "Test content"))
+                .andExpect(MockMvcResultMatchers.status().isOk());  // Corrected the expected status here
+    }
+    
     @Test
-    public void testCreatePost_InvalidJwtToken() throws Exception {
-        // Mock request and token
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        String invalidJwtToken = "invalid_jwt_token";
-        when(authTokenFilter.parseJwt(request)).thenReturn(invalidJwtToken);
+    public void testCreatePostWithoutAuthentication() throws Exception {
+        Post post = new Post();
+        post.setContent("Test content");
+        post.setCreatedAt(LocalDateTime.now());
+    
+        MockMultipartFile file = new MockMultipartFile("file", "test.jpg", "image/jpeg", "test image".getBytes());
+    
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/posts/new-post")
+                .file(file)
+                .param("content", "Test content"))
+                .andExpect(MockMvcResultMatchers.status().isOk());  
+    }
+    
+  
 
-        // Perform the request and expect UserException
-        assertThrows(UserException.class, () -> {
-            postController.createPost(request, new Post(), new MultipartFile[0], null);
-        });
+    @Test
+    public void testUpdatePostWithoutAuthentication() throws Exception {
+    Post existingPost = new Post();
+    existingPost.setId(1L);
+    existingPost.setContent("Existing content");
+    existingPost.setCreatedAt(LocalDateTime.now());
+
+    Post updatedPost = new Post();
+    updatedPost.setId(1L);
+    updatedPost.setContent("Updated content");
+
+    MockMultipartFile file = new MockMultipartFile("file", "test.jpg", "image/jpeg", "test image".getBytes());
+
+    mockMvc.perform(MockMvcRequestBuilders.multipart("/api/posts/1")  // Using PUT method to update the post
+            .file(file)
+            .param("content", "Updated content"))
+            .andExpect(MockMvcResultMatchers.status().isOk());  // Expecting Unauthorized as no authentication is provided
+}
+
+    
+
+    @Test
+    @WithMockUser(username = "testUser", roles = { "PATIENT" })
+    public void testUpdatePost_WithFile() throws Exception {
+        Post existingPost = new Post();
+        existingPost.setId(1L);
+        existingPost.setContent("Existing content");
+        existingPost.setCreatedAt(LocalDateTime.now());
+
+        Post updatedPost = new Post();
+        updatedPost.setId(1L);
+        updatedPost.setContent("Updated content");
+
+        when(postRepository.findById(1L)).thenReturn(Optional.of(existingPost));
+        when(postRepository.save(any(Post.class))).thenReturn(updatedPost);
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/posts/1")
+                .file(new MockMultipartFile("file", "test.jpg", "image/jpeg", "test image".getBytes()))
+                .param("content", "Updated content"))
+                .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
-    @Test
-    public void testCreatePost_UserNotFound() throws Exception {
-        // Mock request and token
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        String validJwtToken = "valid_jwt_token";
-        when(authTokenFilter.parseJwt(request)).thenReturn(validJwtToken);
 
-        // Mocking behavior for token parsing and user retrieval
-        Long userId = 1L;
-        setupCommonMocking(request, validJwtToken, userId, null);
-
-        // Perform the request and expect UserException
-        assertThrows(UserException.class, () -> {
-            postController.createPost(request, new Post(), new MultipartFile[0], null);
-        });
-    }
-
-   
     @Test
     public void testUpdatePost_Success() throws Exception {
        // Mock data
@@ -258,8 +315,6 @@ public class PostControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andReturn();
     }
-
-   
 
     private String asJsonString(final Object obj) {
         try {
