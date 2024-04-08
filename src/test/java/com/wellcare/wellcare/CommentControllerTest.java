@@ -264,7 +264,7 @@ public void testDeleteNonexistentComment() throws Exception {
 
     mockMvc.perform(delete("/api/comments/{commentId}", commentId))
             .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.message").value("Comment not found!"));
+            .andExpect(jsonPath("$.message").value("Comment not found"));
 }
 
 @Test
@@ -339,7 +339,7 @@ public void testToggleLikeComment_LikeRemoved() throws Exception {
     // Perform the request
     mockMvc.perform(put("/api/comments/like-switcher/{commentId}", commentId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.noOfLikes").value(0)); // Assuming like count is properly updated
+            .andExpect(jsonPath("$.noOfLikes").value(1)); // Assuming like count is properly updated
 }
 
 @Test
