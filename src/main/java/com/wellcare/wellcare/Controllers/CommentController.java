@@ -110,7 +110,7 @@ public class CommentController {
 
         }
     }
-
+    
     // to update a comment
     @PutMapping("/{commentId}")
     public ResponseEntity<EntityModel<Comment>> updateComment(@Valid @PathVariable Long commentId,
@@ -136,6 +136,8 @@ public class CommentController {
         commentRepository.save(existingComment);
         return ResponseEntity.ok(commentModelAssembler.toModel(existingComment));
     }
+
+  
 
     @Transactional
     @DeleteMapping("/{commentId}")
@@ -185,44 +187,46 @@ public class CommentController {
     public ResponseEntity<EntityModel<Comment>> toggleLikeComment(HttpServletRequest request,
             @PathVariable Long commentId)
             throws UserException, PostException, CommentException {
-
+    
         try {
             // Extract the JWT token from the request
             String jwtToken = authTokenFilter.parseJwt(request);
             System.out.println("Extracted JWT token: " + jwtToken);
-
+    
             // Parse the JWT token to extract the userId
             Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
             System.out.println("Extracted userId: " + userId);
-
+    
             // Retrieve the user from the repository
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserException("User not found"));
-
+    
             // Retrieve the comment from the repository
             Comment comment = commentRepository.findById(commentId)
                     .orElseThrow(() -> new CommentException("Comment not found"));
-
+    
             user = entityManager.merge(user);
-
+    
             // Toggle like status
             Set<User> likes = comment.getCommentLikes();
             if (likes.contains(user)) {
                 likes.remove(user);
-                comment.setNoOfLikes(comment.getNoOfLikes() - 1);
+                if (comment.getNoOfLikes() > 0) {
+                    comment.setNoOfLikes(comment.getNoOfLikes() - 1);
+                }
             } else {
                 likes.add(user);
                 comment.setNoOfLikes(comment.getNoOfLikes() + 1);
             }
-
+    
             Comment likedComment = commentRepository.save(comment);
             return ResponseEntity.ok(commentModelAssembler.toModel(likedComment));
-
+    
         } catch (UserException ex) {
             // Handle exceptions
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (CommentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-    }
-}
+            }}
+    

@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.tomcat.util.net.openssl.ciphers.Authentication;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,19 +20,30 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wellcare.wellcare.Controllers.PostController;
+import com.wellcare.wellcare.Exceptions.ResourceNotFoundException;
+import com.wellcare.wellcare.Exceptions.UserException;
 import com.wellcare.wellcare.Models.Post;
 import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.Storage.StorageException;
+import com.wellcare.wellcare.Storage.StorageService;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,6 +55,9 @@ public class PostControllerTest {
     @MockBean
     private PostRepository postRepository;
 
+    @Autowired
+    private PostController postController;
+
     @MockBean
     private AuthTokenFilter authTokenFilter;
 
@@ -51,19 +67,36 @@ public class PostControllerTest {
     @MockBean
     private JwtUtils jwtUtils;
 
+    
+    @MockBean
+    private StorageService storageService;
+
     @BeforeEach
     public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        
+        
+    }
+
+    // Common setup for parsing JWT token and retrieving user
+    private void setupCommonMocking(HttpServletRequest request, String jwtToken, Long userId, User user) {
+        when(authTokenFilter.parseJwt(request)).thenReturn(jwtToken);
+        when(jwtUtils.getUserIdFromJwtToken(jwtToken)).thenReturn(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.ofNullable(user));
     }
 
     @Test
     @WithMockUser(username = "testUser", roles = { "DOCTOR" })
     public void testCreatePost() throws Exception {
+        // Mock data
         Post post = new Post();
         post.setContent("Test content");
         post.setCreatedAt(LocalDateTime.now());
 
+        // Mocking behavior
         when(postRepository.save(any(Post.class))).thenReturn(post);
 
+        // Perform the request
         mockMvc.perform(MockMvcRequestBuilders.post("/api/posts/new-post")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .param("content", "Test content")
@@ -72,26 +105,60 @@ public class PostControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "testUser", roles = { "PATIENT" })
-    public void testUpdatePost() throws Exception {
-        Post existingPost = new Post();
-        existingPost.setId(1L);
-        existingPost.setContent("Existing content");
-        existingPost.setCreatedAt(LocalDateTime.now());
+    public void testCreatePost_InvalidJwtToken() throws Exception {
+        // Mock request and token
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        String invalidJwtToken = "invalid_jwt_token";
+        when(authTokenFilter.parseJwt(request)).thenReturn(invalidJwtToken);
 
-        Post updatedPost = new Post();
-        updatedPost.setId(1L);
-        updatedPost.setContent("Updated content");
-
-        when(postRepository.findById(1L)).thenReturn(Optional.of(existingPost));
-        when(postRepository.save(any(Post.class))).thenReturn(updatedPost);
-
-        mockMvc.perform(MockMvcRequestBuilders.put("/api/posts/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updatedPost)))
-                .andExpect(MockMvcResultMatchers.status().isOk());
-
+        // Perform the request and expect UserException
+        assertThrows(UserException.class, () -> {
+            postController.createPost(request, new Post(), new MultipartFile[0], null);
+        });
     }
+
+    @Test
+    public void testCreatePost_UserNotFound() throws Exception {
+        // Mock request and token
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        String validJwtToken = "valid_jwt_token";
+        when(authTokenFilter.parseJwt(request)).thenReturn(validJwtToken);
+
+        // Mocking behavior for token parsing and user retrieval
+        Long userId = 1L;
+        setupCommonMocking(request, validJwtToken, userId, null);
+
+        // Perform the request and expect UserException
+        assertThrows(UserException.class, () -> {
+            postController.createPost(request, new Post(), new MultipartFile[0], null);
+        });
+    }
+
+   
+    @Test
+    public void testUpdatePost_Success() throws Exception {
+       // Mock data
+       Long postId = 1L;
+       Post existingPost = new Post();
+       existingPost.setId(postId);
+       existingPost.setContent("Existing content");
+       existingPost.setLocation("Existing location");
+    
+       Post updatedPost = new Post();
+       updatedPost.setContent("Updated content");
+    
+       // Mocking behavior
+       when(postRepository.findById(postId)).thenReturn(Optional.of(existingPost));
+       when(postRepository.save(any(Post.class))).thenReturn(updatedPost);
+    
+       // Perform the request and verify the response
+       mockMvc.perform(MockMvcRequestBuilders.put("/api/posts/{postId}", postId)
+               .contentType(MediaType.APPLICATION_JSON)
+               .content(asJsonString(updatedPost)))
+               .andExpect(MockMvcResultMatchers.status().isOk());
+    }
+    
+
 
     @Test
     @WithMockUser(username = "testUser", roles = { "DOCTOR" })
@@ -107,6 +174,7 @@ public class PostControllerTest {
         mockMvc.perform(MockMvcRequestBuilders.delete("/api/posts/1"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
+
 
     @Test
     public void testGetPostsByUserId() throws Exception {
@@ -134,7 +202,9 @@ public class PostControllerTest {
         mockMvc.perform(MockMvcRequestBuilders.get("/api/posts/feed"))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andReturn();
+    
     }
+
 
     @Test
     public void testToggleLikePost() throws Exception {
@@ -188,6 +258,8 @@ public class PostControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andReturn();
     }
+
+   
 
     private String asJsonString(final Object obj) {
         try {
