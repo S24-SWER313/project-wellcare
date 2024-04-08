@@ -6,8 +6,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,7 +76,39 @@ public class RelationshipControllerTest {
                 .andExpect(status().isOk());
 
     }
+  
+    
+    
+    @Test
+    public void testGetFriendRequests() throws Exception {
+        String jwtToken = "mockedJwtToken";
+        Long userId = 1L;
+    
+        // Mock JWT token and user ID
+        when(authTokenFilter.parseJwt(any())).thenReturn(jwtToken);
+        when(jwtUtils.getUserIdFromJwtToken(jwtToken)).thenReturn(userId);
+    
+        User user = new User();
+        user.setId(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+    
+        Relationship relationship = new Relationship();
+        relationship.setId(1L);
+        relationship.setUserOne(user);
+        relationship.setUserTwo(user);
+        relationship.setStatus(0);
+        List<Relationship> friendRequests = Collections.singletonList(relationship);
+    
+        when(relationshipRepository.findRelationshipsByUserTwoIdAndStatus(userId, 0)).thenReturn(friendRequests);
+    
+        mockMvc.perform(get("/api/relationship/friend-requests")
+                .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk());
+                
+    }
+    
 
+   
     @Test
     public void testAddFriendAlreadySent() throws Exception {
         when(authTokenFilter.parseJwt(any())).thenReturn("mockedJwtToken");
@@ -95,6 +130,9 @@ public class RelationshipControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
+
+ 
+ 
 
     @Test
     public void testRemoveFriend() throws Exception {
@@ -176,4 +214,8 @@ public class RelationshipControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
+
+ 
+
+
 }

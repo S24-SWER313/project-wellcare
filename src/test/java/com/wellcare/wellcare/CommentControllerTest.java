@@ -13,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -21,10 +22,13 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.wellcare.wellcare.Models.Comment;
+import com.wellcare.wellcare.Models.Post;
 import com.wellcare.wellcare.Repositories.CommentRepository;
 import com.wellcare.wellcare.Repositories.PostRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -56,11 +60,35 @@ public class CommentControllerTest {
         comment.setContent("Test content");
         comment.setCreatedAt(LocalDateTime.now());
 
+        when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("testToken");
+        when(jwtUtils.getUserIdFromJwtToken("testToken")).thenReturn(1L);
         when(commentRepository.save(any(Comment.class))).thenReturn(comment);
+        when(postRepository.findById(1L)).thenReturn(Optional.of(new Post()));
 
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/comments/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(comment)))
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/comments/1")
+                .content(asJsonString(comment))
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(MockMvcResultMatchers.status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "testUser", roles = { "DOCTOR" })
+    public void testCreateComment_MultiPartFile() throws Exception {
+        Comment comment = new Comment();
+        comment.setContent("Test content");
+        comment.setCreatedAt(LocalDateTime.now());
+
+        when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("testToken");
+        when(jwtUtils.getUserIdFromJwtToken("testToken")).thenReturn(1L);
+        when(commentRepository.save(any(Comment.class))).thenReturn(comment);
+        when(postRepository.findById(1L)).thenReturn(Optional.of(new Post()));
+
+        MockMultipartFile file = new MockMultipartFile("file", "filename.txt", "text/plain", "fileContent".getBytes());
+
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/comments/1")
+                .file(file)
+                .param("comment", asJsonString(comment))
+                .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 

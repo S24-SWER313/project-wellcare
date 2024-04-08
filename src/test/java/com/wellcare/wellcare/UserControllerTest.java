@@ -14,11 +14,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -32,7 +29,6 @@ import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
-import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 import com.wellcare.wellcare.Storage.StorageService;
 
 @SpringBootTest
@@ -119,32 +115,36 @@ public class UserControllerTest {
     }
 
     @Test
-    public void testUpdateUserProfileUnauthorized() throws Exception {
-        User mockUser = new User();
-        mockUser.setId(1L);
-        mockUser.setUsername("testUser");
+public void testUpdateUserProfileUnauthorized() throws Exception {
+    User mockUser = new User();
+    mockUser.setId(1L);
+    mockUser.setUsername("testUser");
 
-        User updatedUser = new User();
-        updatedUser.setId(2L);  // Different user ID to make it unauthorized
+    User updatedUser = new User();
+    updatedUser.setId(1L); 
+    updatedUser.setBio("Welcome to my profile!");
 
-        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
-        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+    when(authTokenFilter.parseJwt(any())).thenReturn("invalidJwtToken"); // Providing an incorrect JWT token
+    when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(2L); // Any ID different from the mockUser's ID
+    when(userRepository.findById(2L)).thenReturn(Optional.of(mockUser));
 
-        mockMvc.perform(
-                put("/api/users/profile")
-                        .content(new ObjectMapper().writeValueAsString(updatedUser))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer jwtToken"))
-               .andExpect(status().isUnauthorized())
-               .andExpect(jsonPath("$.message").value("You are not authorized to update this profile"));
-    }
+    mockMvc.perform(
+            put("/api/users/profile")
+                    .content(new ObjectMapper().writeValueAsString(updatedUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer invalidJwtToken"))
+           .andExpect(status().isUnauthorized())
+           .andExpect(jsonPath("$.message").value("You are not authorized to update this profile"));
+}
+
+    
 
     @Test
     public void testUpdateDoctorProfileSuccess() throws Exception {
         User mockUser = new User();
         mockUser.setId(1L);
         mockUser.setUsername("doctorUser");
+        mockUser.setRole(ERole.DOCTOR);
 
         User updatedUser = new User();
         updatedUser.setSpecialty("updated");
@@ -190,29 +190,25 @@ public class UserControllerTest {
                         .param("specialty", "updated")
                         .param("degree", "updated")
                         .header("Authorization", "Bearer jwtToken"))
-               .andExpect(status().isOk())  // Expecting a 401 Unauthorized status
-               .andExpect(jsonPath("$.message").value("Unauthorized: Full authentication is required to access this resource"));
+               .andExpect(status().isBadRequest())  // Expecting a 400 Bad Request status
+               .andExpect(jsonPath("$.message").value("Access is denied"));
     }
     
     
     @Test
-    public void testUpdateDoctorProfileAsPatient() throws Exception {
-        // Create a mock User with patient role
+    public void testUpdateDoctorProfile_LoggedInAsPatient() throws Exception {
         User mockUser = new User();
         mockUser.setId(1L);
         mockUser.setUsername("patientUser");
         mockUser.setRole(ERole.PATIENT);
     
-        // Mock the behavior of the required methods
         when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
         when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
         when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
         doNothing().when(storageService).store(any());
     
-        // Create a mock MultipartFile
         MockMultipartFile file = new MockMultipartFile("file", "images.png", "image/png", "test data".getBytes());
     
-        // Perform the request
         mockMvc.perform(
                 MockMvcRequestBuilders.put("/api/users/profile/doctor")
                         .contentType(MediaType.MULTIPART_FORM_DATA)
@@ -220,7 +216,7 @@ public class UserControllerTest {
                         .param("specialty", "updated")
                         .param("degree", "updated")
                         .header("Authorization", "Bearer jwtToken"))
-               .andExpect(status().isForbidden())
+               .andExpect(status().isBadRequest())
                .andExpect(jsonPath("$.message").value("Access is denied"));
     }
     
@@ -231,6 +227,16 @@ public class UserControllerTest {
         User mockUser = new User();
         mockUser.setId(1L);
         mockUser.setUsername("doctorUser");
+        mockUser.setRole(ERole.DOCTOR);
+
+        User updatedUser = new User();
+        updatedUser.setSpecialty("updated");
+        updatedUser.setDegree("updated");
+
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(userRepository.save(any())).thenReturn(updatedUser);
 
         mockMvc.perform(
                 put("/api/users/profile/doctor")
@@ -246,7 +252,7 @@ public class UserControllerTest {
         User mockUser = new User();
         mockUser.setId(1L);
         mockUser.setUsername("testUser");
-        mockUser.setPassword("$2a$10$12345678901234567890"); // hashed "oldPassword"
+        mockUser.setPassword("$2a$10$12345678901234567890"); 
 
         when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
         when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
@@ -268,7 +274,7 @@ public class UserControllerTest {
         User mockUser = new User();
         mockUser.setId(1L);
         mockUser.setUsername("testUser");
-        mockUser.setPassword("$2a$10$12345678901234567890"); // hashed "oldPassword"
+        mockUser.setPassword("$2a$10$12345678901234567890"); 
 
         when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
         when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);

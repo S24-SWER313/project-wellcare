@@ -53,9 +53,7 @@ public class MessageController {
     @Autowired
     private MessageRepository messageRepository;
 
-    @Autowired
-    private RelationshipRepository relationshipRepository;
-   
+      
     @Autowired
     private UserRepository userRepository;
 
@@ -90,7 +88,6 @@ public class MessageController {
             
             List<String> attachmentUrls = storeAttachments(files);
     
-            message.setContent(message.getContent());
             message.setFromUser(loggedInUser);
             message.setToUser(toUser);
             message.setTime(LocalDateTime.now());
@@ -128,30 +125,37 @@ public class MessageController {
         try {
             String jwtToken = authTokenFilter.parseJwt(request);
             Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-
+    
             Message message = messageRepository.findById(messageId)
                     .orElseThrow(() -> new MessageException("Message not found"));
-
+    
             if (!message.getFromUser().getId().equals(userId)) {
                 Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
                 EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
                 return ResponseEntity.badRequest().body(errorModel);
             }
-
+    
+            // Update the message content
             message.setContent(updatedMessage.getContent());
-
+    
             Message savedMessage = messageRepository.save(message);
-
+    
             EntityModel<Message> messageModel = messageModelAssembler.toModel(savedMessage);
-
+    
             return ResponseEntity.ok(messageModel);
-
+    
+        } catch (MessageException e) {
+            Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
+            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorModel);
         } catch (Exception e) {
             Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
             EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorModel);
         }
     }
+    
+
 
     @GetMapping("/{chatUserId}")
     public ResponseEntity<CollectionModel<EntityModel<Message>>> getMessagesWithUser(@PathVariable Long chatUserId,

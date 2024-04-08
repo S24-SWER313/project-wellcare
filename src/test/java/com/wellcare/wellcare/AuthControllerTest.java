@@ -13,11 +13,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -141,20 +143,64 @@ public class AuthControllerTest {
         request.setName("Doctor User");
         request.setRole("DOCTOR");
 
+        MockMultipartFile file = new MockMultipartFile("attachment", "test.txt", "text/plain", "test data".getBytes());
+
         when(userRepository.existsByUsername(anyString())).thenReturn(false);
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
 
-        mockMvc.perform(post("/api/auth/signup")
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .param("username", request.getUsername())
-                .param("email", request.getEmail())
-                .param("password", request.getPassword())
-                .param("name", request.getName())
-                .param("role", request.getRole()))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Error: Doctor specialty and degree are required!"));
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/auth/signup")
+        .file(file)
+        .param("username", request.getUsername())
+        .param("email", request.getEmail())
+        .param("password", request.getPassword())
+        .param("name", request.getName())
+        .param("role", request.getRole()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Error: Doctor specialty and degree are required!"));
     }
 
+    
+    @Test
+    public void testRegisterMissingUsername() throws Exception {
+        SignupRequest request = new SignupRequest();
+        request.setUsername(null);
+        request.setEmail("test@example.com");
+        request.setPassword("password123");
+        request.setName("Test User");
+        request.setRole(ERole.PATIENT.toString());
+
+        mockMvc.perform(post("/api/auth/signup")
+        .contentType(MediaType.MULTIPART_FORM_DATA)
+        .param("username", request.getUsername())
+        .param("email", request.getEmail())
+        .param("password", request.getPassword())
+        .param("name", request.getName())
+        .param("role", request.getRole()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Validation Error"));
+    }
+
+    @Test
+public void testRegisterInvalidEmail() throws Exception {
+    SignupRequest request = new SignupRequest();
+    request.setUsername("test_user1");
+    request.setEmail("test@");
+    request.setPassword("password123");
+    request.setName("Test User");
+    request.setRole(ERole.DOCTOR.toString());
+
+    mockMvc.perform(post("/api/auth/signup")
+            .contentType(MediaType.MULTIPART_FORM_DATA)
+            .param("username", request.getUsername())
+            .param("email", request.getEmail())
+            .param("password", request.getPassword())
+            .param("name", request.getName())
+            .param("role", request.getRole()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Validation Error"));
+}
+
+   
     @Test
     public void testAuthenticateUserSuccess() throws Exception {
         LoginRequest loginRequest = new LoginRequest();
