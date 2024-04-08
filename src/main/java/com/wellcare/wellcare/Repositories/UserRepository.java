@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.wellcare.wellcare.Models.ERole;
+import com.wellcare.wellcare.Models.Post;
 import com.wellcare.wellcare.Models.User;
 
 @Repository
@@ -37,5 +38,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT CASE WHEN COUNT(up.id) > 0 THEN true ELSE false END FROM User u JOIN u.savedPost up WHERE u.id = :userId AND up.id = :postId")
     boolean existsUserSavedPostByUserIdAndPostId(Long userId, Long postId);
+
+    List<User> findBySavedPost(Post post);
 
 }

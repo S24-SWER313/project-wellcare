@@ -1,217 +1,314 @@
 package com.wellcare.wellcare;
 
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wellcare.wellcare.Controllers.UserController;
 import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Gender;
 import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
+import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
-import com.wellcare.wellcare.Security.services.UserDetailsImpl;
+import com.wellcare.wellcare.Storage.StorageService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 public class UserControllerTest {
 
-        @Autowired
-        private MockMvc mockMvc;
+    @Mock
+    private UserRepository userRepository;
 
-        @Autowired
-        private ObjectMapper objectMapper;
+    @Mock
+    private StorageService storageService;
 
-        @MockBean
-        private UserRepository userRepository;
+    @Mock
+    private JwtUtils jwtUtils;
 
-        @MockBean
-        private JwtUtils jwtUtils;
+    @Mock
+    private AuthTokenFilter authTokenFilter;
 
-        @BeforeEach
-        public void setUp() {
-                User user = new User();
-                user.setId(1L);
-                user.setUsername("testUser");
-                user.setPassword("testPassword");
-                user.setName("Test User");
-                user.setEmail("test@example.com");
+    @Mock
+    private PasswordEncoder encoder;
 
-                ERole role = ERole.PATIENT;
+    @InjectMocks
+    private UserController userController;
 
-                List<GrantedAuthority> authorities = new ArrayList<>();
-                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toString()));
+    private MockMvc mockMvc;
 
-                UserDetails userDetails = new UserDetailsImpl(
-                                user.getId(),
-                                user.getUsername(),
-                                user.getEmail(),
-                                user.getPassword(),
-                                authorities);
+    @BeforeEach
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
+        this.mockMvc = MockMvcBuilders.standaloneSetup(userController).build();
+    }
 
-                when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-                when(jwtUtils.getUserNameFromJwtToken(anyString())).thenReturn(user.getUsername());
-                when(jwtUtils.getUserIdFromJwtToken(anyString())).thenReturn(user.getId());
+    @Test
+    public void testGetUserProfileSuccess() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("testUser");
 
-                Authentication authentication = new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-        }
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
 
-        @Test
-        @WithMockUser(username = "testUser", password = "testPassword")
-        public void testGetUserProfile() throws Exception {
-                mockMvc.perform(get("/api/users/profile/{userId}", 1L)
-                                .contentType(MediaType.APPLICATION_JSON))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.username").value("testUser"))
-                                .andExpect(jsonPath("$.name").value("Test User"))
-                                .andExpect(jsonPath("$.email").value("test@example.com"));
-        }
+        mockMvc.perform(get("/api/users/profile/1"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.username").value("testUser"));
+    }
 
-        @Test
-        @WithMockUser(username = "testUser", password = "testPassword")
-        public void testUpdateUserProfile() throws Exception {
-                User updatedUser = new User();
-                updatedUser.setName("Updated User");
-                updatedUser.setEmail("updated@example.com");
-                updatedUser.setMobile("1234567890");
-                updatedUser.setBio("Updated bio");
-                updatedUser.setGender(Gender.MALE);
+    @Test
+    public void testGetUserProfileNotFound() throws Exception {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-                when(userRepository.findById(1L)).thenReturn(Optional.of(updatedUser));
-                when(userRepository.save(any(User.class))).thenReturn(updatedUser);
+        mockMvc.perform(get("/api/users/profile/1"))
+               .andExpect(status().isNotFound())
+               .andExpect(content().string("User not found"));
+    }
 
-                mockMvc.perform(put("/api/users/profile/{userId}", 1L)
-                                .contentType(MediaType.MULTIPART_FORM_DATA)
-                                .param("name", "Updated User")
-                                .param("email", "updated@example.com")
-                                .param("mobile", "1234567890")
-                                .param("bio", "Updated bio")
-                                .param("gender", "MALE"))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.message").value("User profile updated successfully"));
+    @Test
+    public void testUpdateUserProfileSuccess() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("testUser");
+        mockUser.setPassword("oldPassword");
 
-                verify(userRepository, times(1)).findById(anyLong());
-                verify(userRepository, times(1)).save(any(User.class));
-        }
+        User updatedUser = new User();
+        updatedUser.setName("updatedName");
+        updatedUser.setEmail("updated@test.com");
+        updatedUser.setMobile("1234567890");
+        updatedUser.setBio("updatedBio");
+        updatedUser.setGender(Gender.MALE);
+        updatedUser.setImage("http://localhost:8080/files/image.jpg");
 
-        @Test
-        @WithMockUser(username = "testUser", password = "testPassword")
-        public void testUpdateUserPassword() throws Exception {
-                mockMvc.perform(put("/api/users/profile/{userId}/password", 1L)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"password\": \"newPassword123\"}"))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.message").value("Password updated successfully"));
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        doNothing().when(storageService).store(any()); 
+        when(userRepository.save(any())).thenReturn(updatedUser);
 
-                verify(userRepository, times(1)).save(any(User.class));
-        }
 
-        @Test
-        @WithMockUser(username = "testUser", password = "testPassword", authorities = { "DOCTOR" })
-        public void testUpdateDoctorProfile() throws Exception {
-                Map<String, String> doctorData = new HashMap<>();
-                doctorData.put("specialty", "Cardiologist");
-                doctorData.put("degree", "MD");
+        mockMvc.perform(
+                put("/api/users/profile")
+                        .content(new ObjectMapper().writeValueAsString(updatedUser))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer jwtToken"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.message").value("User profile updated successfully"));
+    }
 
-                mockMvc.perform(put("/api/users/profile/{userId}/doctor", 1L)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(doctorData)))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.message").value("Doctor profile updated successfully"))
-                                .andExpect(result -> {
-                                        System.out.println(result.getResponse().getContentAsString());
-                                });
+    @Test
+public void testUpdateUserProfileUnauthorized() throws Exception {
+    User mockUser = new User();
+    mockUser.setId(1L);
+    mockUser.setUsername("testUser");
 
-                verify(userRepository, times(1)).save(any(User.class));
-        }
+    User updatedUser = new User();
+    updatedUser.setId(1L); 
+    updatedUser.setBio("Welcome to my profile!");
 
-        @Test
-        @WithMockUser(username = "testUser", password = "testPassword", authorities = { "DOCTOR" })
-        public void testUpdateDoctorProfile_Unauthorized() throws Exception {
-                Map<String, String> doctorData = new HashMap<>();
-                doctorData.put("specialty", "Cardiologist");
-                doctorData.put("degree", "MD");
+    when(authTokenFilter.parseJwt(any())).thenReturn("invalidJwtToken"); // Providing an incorrect JWT token
+    when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(2L); // Any ID different from the mockUser's ID
+    when(userRepository.findById(2L)).thenReturn(Optional.of(mockUser));
 
-                mockMvc.perform(put("/api/users/profile/{userId}/doctor", 1L)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(doctorData)))
-                                .andExpect(status().isForbidden());
+    mockMvc.perform(
+            put("/api/users/profile")
+                    .content(new ObjectMapper().writeValueAsString(updatedUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer invalidJwtToken"))
+           .andExpect(status().isUnauthorized())
+           .andExpect(jsonPath("$.message").value("You are not authorized to update this profile"));
+}
 
-                verify(userRepository, times(0)).save(any(User.class));
-        }
+    
 
-        @Test
-        @WithMockUser(username = "testUser", password = "testPassword")
-        public void testUnfollowUser_UserNotFollowing() throws Exception {
-                User friend = new User();
-                friend.setId(2L);
+    @Test
+    public void testUpdateDoctorProfileSuccess() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("doctorUser");
+        mockUser.setRole(ERole.DOCTOR);
 
-                when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
-                when(userRepository.findById(1L)).thenReturn(Optional.of(new User()));
+        User updatedUser = new User();
+        updatedUser.setSpecialty("updated");
+        updatedUser.setDegree("updated");
+        updatedUser.setAttachment("http://localhost:8080/files/images.png");
 
-                mockMvc.perform(put("/api/users/unfollowing/{userId}", 2L))
-                                .andExpect(status().isBadRequest());
+        MockMultipartFile file = new MockMultipartFile("file", "images.png", "image/png", "test data".getBytes());
 
-                verify(userRepository, times(0)).save(any(User.class));
-        }
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        doNothing().when(storageService).store(any());
+        when(userRepository.save(any())).thenReturn(updatedUser);
 
-        @Test
-        public void testUpdateUserProfile_InvalidEmail() throws Exception {
-                User updatedUser = new User();
-                updatedUser.setName("Updated User");
-                updatedUser.setEmail("invalidemail");
+        mockMvc.perform(
+                put("/api/users/profile/doctor")
+                        .param("specialty", "updated")
+                        .param("degree", "updated")
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .header("Authorization", "Bearer jwtToken")
+                        .content(file.getBytes()))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.message").value("Doctor profile updated successfully"));
+    }
 
-                Authentication authentication = new UsernamePasswordAuthenticationToken(
-                                new UserDetailsImpl(1L, "testUser", "test@example.com", "testPassword",
-                                                List.of(new SimpleGrantedAuthority("PATIENT"))),
-                                null,
-                                List.of(new SimpleGrantedAuthority("PATIENT")));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+    @Test
+    public void testUpdateDoctorProfileUnauthorized() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("doctorUser");
+    
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        doNothing().when(storageService).store(any());
+    
+        MockMultipartFile file = new MockMultipartFile("file", "images.png", "image/png", "test data".getBytes());
+    
+        mockMvc.perform(
+                MockMvcRequestBuilders.put("/api/users/profile/doctor")
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .content(file.getBytes())
+                        .param("specialty", "updated")
+                        .param("degree", "updated")
+                        .header("Authorization", "Bearer jwtToken"))
+               .andExpect(status().isBadRequest())  // Expecting a 400 Bad Request status
+               .andExpect(jsonPath("$.message").value("Access is denied"));
+    }
+    
+    
+    @Test
+    public void testUpdateDoctorProfile_LoggedInAsPatient() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("patientUser");
+        mockUser.setRole(ERole.PATIENT);
+    
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        doNothing().when(storageService).store(any());
+    
+        MockMultipartFile file = new MockMultipartFile("file", "images.png", "image/png", "test data".getBytes());
+    
+        mockMvc.perform(
+                MockMvcRequestBuilders.put("/api/users/profile/doctor")
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .content(file.getBytes())
+                        .param("specialty", "updated")
+                        .param("degree", "updated")
+                        .header("Authorization", "Bearer jwtToken"))
+               .andExpect(status().isBadRequest())
+               .andExpect(jsonPath("$.message").value("Access is denied"));
+    }
+    
+    
 
-                mockMvc.perform(put("/api/users/profile/{userId}", 1L)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(updatedUser)))
-                                .andExpect(status().isBadRequest());
+    @Test
+    public void testUpdateDoctorProfileWithoutFile() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("doctorUser");
+        mockUser.setRole(ERole.DOCTOR);
 
-                verify(userRepository, times(0)).save(any(User.class));
-        }
+        User updatedUser = new User();
+        updatedUser.setSpecialty("updated");
+        updatedUser.setDegree("updated");
 
-        @Test
-        @WithMockUser(username = "testUser", password = "testPassword")
-        public void testUpdateUserPassword_InvalidPassword() throws Exception {
-                mockMvc.perform(put("/api/users/profile/{userId}/password", 1L)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"password\": \"short\"}"))
-                                .andExpect(status().isBadRequest());
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(userRepository.save(any())).thenReturn(updatedUser);
 
-                verify(userRepository, times(0)).save(any(User.class));
-        }
+        mockMvc.perform(
+                put("/api/users/profile/doctor")
+                        .param("specialty", "updated")
+                        .param("degree", "updated")
+                        .header("Authorization", "Bearer jwtToken"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.message").value("Doctor profile updated successfully"));
+    }
+
+    @Test
+    public void testUpdateUserPasswordSuccess() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("testUser");
+        mockUser.setPassword("$2a$10$12345678901234567890"); 
+
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(encoder.encode(anyString())).thenReturn("$2a$10$09876543210987654321"); // hashed "newPassword"
+        when(userRepository.save(any())).thenReturn(mockUser);
+
+        mockMvc.perform(
+                put("/api/users/profile/password")
+                        .content("{\"password\": \"newPassword\"}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer jwtToken"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.message").value("Password updated successfully"));
+    }
+
+    @Test
+    public void testUpdateUserPasswordBadRequest() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("testUser");
+        mockUser.setPassword("$2a$10$12345678901234567890"); 
+
+        when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+        when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+
+        mockMvc.perform(
+                put("/api/users/profile/password")
+                        .content("{\"password\": \"123\"}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer jwtToken"))
+               .andExpect(status().isBadRequest())
+               .andExpect(jsonPath("$.message").value("Password should have at least 8 characters"));
+    }
+
+    @Test
+public void testUpdateUserPasswordUnauthorized() throws Exception {
+    User mockUser = new User();
+    mockUser.setId(1L);
+    mockUser.setUsername("testUser");
+    mockUser.setPassword("$2a$10$oldPasswordHashed"); // hashed "oldPassword"
+
+    when(authTokenFilter.parseJwt(any())).thenReturn("jwtToken");
+    when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(2L);  // Different user ID to make it unauthorized
+    when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+
+    mockMvc.perform(
+            put("/api/users/profile/password")
+                    .content("{\"password\": \"newPassword\"}")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer jwtToken"))
+           .andExpect(status().isUnauthorized())
+           .andExpect(jsonPath("$.message").value("Unauthorized: Full authentication is required to access this resource"));
+}
 
 }
+
+

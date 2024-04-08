@@ -1,5 +1,6 @@
 package com.wellcare.wellcare.Controllers;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.wellcare.wellcare.Exceptions.UserException;
+import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
@@ -66,134 +69,152 @@ public class UserController {
         }
     }
 
-    @PutMapping("/profile/{userId}")
+    @PutMapping("/profile")
     @Transactional
-    public ResponseEntity<MessageResponse> updateUserProfile(@PathVariable Long userId,
+    public ResponseEntity<?> updateUserProfile(HttpServletRequest request,
             @Valid @ModelAttribute User updatedUser,
-            @RequestParam(value = "file", required = false) MultipartFile file) {
-        // Get the authenticated user
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        // Check if the authenticated user ID matches the requested user ID
-        if (!userDetails.getId().equals(userId)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new MessageResponse("You are not authorized to update this profile"));
-        }
-
-        Optional<User> existingUser = userRepository.findById(userId);
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-
-            String existingUsername = user.getUsername();
-            String existingPassword = user.getPassword();
-
-            // Update only the fields that are not null in the request body
-            if (updatedUser.getName() != null) {
-                user.setName(updatedUser.getName());
-            }
-            if (updatedUser.getEmail() != null) {
-                user.setEmail(updatedUser.getEmail());
-            }
-            if (updatedUser.getMobile() != null) {
-                user.setMobile(updatedUser.getMobile());
-            }
-            if (updatedUser.getBio() != null) {
-                user.setBio(updatedUser.getBio());
-            }
-            if (updatedUser.getGender() != null) {
-                user.setGender(updatedUser.getGender());
-            }
-
-            if (file != null && !file.isEmpty()) {
-                System.out.println("Received file: " + file.getOriginalFilename());
-                storageService.store(file);
-                String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
-                user.setImage(imageUrl);
-            } else if (updatedUser.getImage() != null) {
-                user.setImage(updatedUser.getImage());
-            }
-
-            // Set back the existing username and password
-            user.setUsername(existingUsername);
-            user.setPassword(existingPassword);
-
-            userRepository.save(user);
-
-            return ResponseEntity.ok().body(new MessageResponse("User profile updated successfully"));
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
-        }
-    }
-
-    @PreAuthorize("hasAuthority('DOCTOR')")
-    @PutMapping("/profile/doctor")
-    @Transactional
-    public ResponseEntity<MessageResponse> updateDoctorProfile(HttpServletRequest request,
-            @ModelAttribute User doctorData,  @RequestParam(value = "file", required = false) MultipartFile file) throws UserException {
-
-                String jwtToken = authTokenFilter.parseJwt(request);
-                System.out.println("Extracted JWT token: " + jwtToken);
+            @RequestParam(value = "profile_picture", required = false) MultipartFile file) throws UserException {
     
-                // Parse the JWT token to extract the userId
-                Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-                System.out.println("Extracted userId: " + userId);
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
     
-                // Use the extracted userId to get the User object
-                Optional<User> existingUserOptional = userRepository.findById(userId);
-                User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
-
-
-
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+    
+        Optional<User> existingUserOptional = userRepository.findById(userId);
+        User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
+    
+        System.out.println("User ID from database: " + user.getId());
+        System.out.println("Updated User ID: " + updatedUser.getId());
+    
         if (!user.getId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new MessageResponse("You are not authorized to update this profile"));
         }
-
+    
         Optional<User> existingUser = userRepository.findById(userId);
         if (existingUser.isPresent()) {
-            User user1 = existingUserOptional.get();
-
-            String specialty = doctorData.getSpecialty();
-            String degree = doctorData.getDegree();
-
-            if (specialty != null) {
-                user1.setSpecialty(specialty);
+            User userExisting = existingUser.get();
+    
+            String existingUsername = userExisting.getUsername();
+            String existingPassword = userExisting.getPassword();
+    
+            // Update only the fields that are not null in the request body
+            if (updatedUser.getName() != null) {
+                userExisting.setName(updatedUser.getName());
             }
-            if (degree != null) {
-                user1.setDegree(degree);
+            if (updatedUser.getEmail() != null) {
+                userExisting.setEmail(updatedUser.getEmail());
             }
-       
+            if (updatedUser.getMobile() != null) {
+                userExisting.setMobile(updatedUser.getMobile());
+            }
+            if (updatedUser.getBio() != null) {
+                userExisting.setBio(updatedUser.getBio());
+            }
+            if (updatedUser.getGender() != null) {
+                userExisting.setGender(updatedUser.getGender());
+            }
+    
             if (file != null && !file.isEmpty()) {
                 System.out.println("Received file: " + file.getOriginalFilename());
                 storageService.store(file);
                 String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
-                user1.setAttachment(imageUrl);
-            } else if (user1.getAttachment() != null) {
-                user1.setAttachment(user1.getAttachment());
+                userExisting.setImage(imageUrl);
+            } else if (updatedUser.getImage() != null) {
+                userExisting.setImage(updatedUser.getImage());
             }
-
-            userRepository.save(user1);
-
-            return ResponseEntity.ok().body(new MessageResponse("Doctor profile updated successfully"));
+    
+            // Set back the existing username and password
+            userExisting.setUsername(existingUsername);
+            userExisting.setPassword(existingPassword);
+    
+            User savedUser = userRepository.save(userExisting);
+    
+            return ResponseEntity.ok().body(new MessageResponse("User profile updated successfully", savedUser));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
     }
+    
+    
 
-    @PutMapping("/profile/{userId}/password")
+    @PreAuthorize("hasAuthority('DOCTOR')")
+    @PutMapping("/profile/doctor")
     @Transactional
-    public ResponseEntity<MessageResponse> updateUserPassword(@PathVariable Long userId,
-            @RequestBody Map<String, String> passwordMap) {
+    public ResponseEntity<?> updateDoctorProfile(HttpServletRequest request,
+                                                                  @RequestParam("specialty") String specialty,
+                                                                  @RequestParam("degree") String degree,
+                                                                  @RequestParam(value = "attachment", required = false) MultipartFile file) throws UserException {
+    
+        try {
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
+    
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
+    
+            // Use the extracted userId to get the User object
+            Optional<User> existingUserOptional = userRepository.findById(userId);
+            User userToUpdate = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
+    
+            if (!userToUpdate.getRole().equals(ERole.DOCTOR)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Collections.singletonMap("message", "Access is denied"));
+            }
+    
+            if (specialty != null) {
+                userToUpdate.setSpecialty(specialty);
+            }
+            if (degree != null) {
+                userToUpdate.setDegree(degree);
+            }
+    
+            if (file != null && !file.isEmpty()) {
+                System.out.println("Received file: " + file.getOriginalFilename());
+                storageService.store(file);
+                String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
+                userToUpdate.setAttachment(imageUrl);
+            } else if (userToUpdate.getAttachment() != null) {
+                userToUpdate.setAttachment(userToUpdate.getAttachment());
+            }
+    
+            User savedUser = userRepository.save(userToUpdate);
+    
+            return ResponseEntity.ok().body(new MessageResponse("Doctor profile updated successfully", savedUser));
+    
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Collections.singletonMap("message", "Unauthorized: Full authentication is required to access this resource"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Collections.singletonMap("message", "Access is denied"));
+        }
+    }
+        
+@PutMapping("/profile/password")
+@Transactional
+public ResponseEntity<MessageResponse> updateUserPassword(HttpServletRequest request,
+                                                           @RequestBody Map<String, String> passwordMap) throws UserException {
+    try {
         // Get the authenticated user
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
+
+        // Parse the JWT token to extract the userId
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+
+        // Use the extracted userId to get the User object
+        Optional<User> existingUserOptional = userRepository.findById(userId);
+        User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
 
         // Extract the password from the map
         String newPassword = passwordMap.get("password");
 
         // Check if the authenticated user ID matches the requested user ID
-        if (!userDetails.getId().equals(userId)) {
+        if (!user.getId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new MessageResponse("You are not authorized to update this password"));
         }
@@ -204,21 +225,25 @@ public class UserController {
                     .body(new MessageResponse("Password should have at least 8 characters"));
         }
 
-        Optional<User> existingUser = userRepository.findById(userId);
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-
-            // Hash the new password
-            String hashedPassword = encoder.encode(newPassword);
-
-            // Update the user's password
-            user.setPassword(hashedPassword);
-            userRepository.save(user);
-
-            return ResponseEntity.ok().body(new MessageResponse("Password updated successfully"));
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
+        if (encoder.matches(newPassword, user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new MessageResponse("Password isn't updated"));
         }
+
+        // Hash the new password
+        String hashedPassword = encoder.encode(newPassword);
+
+        // Update the user's password
+        user.setPassword(hashedPassword);
+        userRepository.save(user);
+
+        return ResponseEntity.ok().body(new MessageResponse("Password updated successfully"));
+
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new MessageResponse("Unauthorized: Full authentication is required to access this resource"));
     }
+}
+
 
 }

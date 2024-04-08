@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.hibernate.Hibernate;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,20 +44,27 @@ import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Storage.StorageService;
+import com.wellcare.wellcare.payload.response.MessageResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
+/* message status = 0 => message is unread
+ * message status = 1 => message is read
+ * users can send messages to each other and update them regardless if they're friends or not.
+ * getMessagesWithUser: user1 can see the chat between him and a specific user, if the status = 0, the status will become 1
+ * getRecentConversations: user1 can see the chat between him and many users, status can be 0 or 1, but if status is 0, it doesn't change to 1 in it
+ * getUnreadMessages: user1 can see all the unread messages where status = 0 between him and many users, status remain 0 here
+ */
+
 @RestController
-@RequestMapping("/api/message")
+@RequestMapping("/api/messages")
 public class MessageController {
 
     @Autowired
     private MessageRepository messageRepository;
 
-    @Autowired
-    private RelationshipRepository relationshipRepository;
-
+      
     @Autowired
     private UserRepository userRepository;
 
@@ -71,102 +81,102 @@ public class MessageController {
     MessageModelAssembler messageModelAssembler;
 
     @Transactional
-    @PostMapping("/sending/{userId}")
-    public ResponseEntity<EntityModel<Message>> sendMessage(@Valid @PathVariable Long userId,
+    @PostMapping("/new-message/{userId}")
+    public ResponseEntity<EntityModel<?>> sendMessage(@Valid @PathVariable Long userId,
             @ModelAttribute Message message,
             @RequestParam(value = "file", required = false) MultipartFile[] files,
             HttpServletRequest request) {
         try {
             String jwtToken = authTokenFilter.parseJwt(request);
             Long loggedInUserId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-
+    
             User loggedInUser = userRepository.findById(loggedInUserId)
                     .orElseThrow(() -> new UserException("User not found"));
-
-            User toUser = userRepository.findById(userId)
-                    .orElseThrow(() -> new UserException("Recipient not found"));
-
-            Relationship relationship = relationshipRepository
-                    .findRelationshipByUserOneIdAndUserTwoId(loggedInUserId, userId);
-
-            if (relationship == null) {
-                throw new UserException(
-                        "No valid relationship found with the recipient. The friend request is still pending.");
+    
+            Optional<User> toUserOptional = userRepository.findById(userId);
+            if (toUserOptional.isEmpty()) {
+                        return ResponseEntity.badRequest()
+                                             .body(EntityModel.of(new MessageResponse("Recipient not found")));
             }
-
+              
+            User toUser = toUserOptional.get();
+            
             List<String> attachmentUrls = storeAttachments(files);
-
-            message.setContent(message.getContent());
+    
             message.setFromUser(loggedInUser);
             message.setToUser(toUser);
             message.setTime(LocalDateTime.now());
             message.setAttachment(attachmentUrls);
-            message.setRelationship(relationship);
 
             Message savedMessage = messageRepository.save(message);
-
+    
             if (savedMessage != null) {
                 EntityModel<Message> messageModel = messageModelAssembler.toModel(savedMessage);
                 return ResponseEntity.ok(messageModel);
             }
-
+    
             throw new MessageException("Error sending message");
-
+    
         } catch (NumberFormatException e) {
             Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+            EntityModel<?> errorModel = EntityModel.of(new Message(), link);
             return ResponseEntity.badRequest().body(errorModel);
         } catch (UserException e) {
             Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+            EntityModel<?> errorModel = EntityModel.of(new Message(), link);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorModel);
         } catch (MessageException e) {
             Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+            EntityModel<?> errorModel = EntityModel.of(new Message(), link);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorModel);
         }
     }
+    
 
-    @PutMapping("/update/{messageId}")
-    public ResponseEntity<EntityModel<Message>> updateMessage(@Valid @PathVariable Long messageId,
-            @ModelAttribute Message updatedMessage,
-            HttpServletRequest request) {
-        try {
-            String jwtToken = authTokenFilter.parseJwt(request);
-            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+    @PutMapping("/{messageId}")
+public ResponseEntity<MessageResponse> updateMessage(@Valid @PathVariable Long messageId,
+                                                     @RequestBody Message updatedMessage,
+                                                     HttpServletRequest request) {
+    try {
+        String jwtToken = authTokenFilter.parseJwt(request);
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
 
-            Message message = messageRepository.findById(messageId)
-                    .orElseThrow(() -> new MessageException("Message not found"));
+        Optional<Message> messageOptional = messageRepository.findById(messageId);
 
-            if (!message.getFromUser().getId().equals(userId)) {
-                Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-                EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
-                return ResponseEntity.badRequest().body(errorModel);
-            }
-
-            Relationship relationship = message.getRelationship(); // Get the relationship from the existing message
-            if (relationship == null) {
-                Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-                EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
-                return ResponseEntity.badRequest().body(errorModel);
-            }
-
-            message.setContent(updatedMessage.getContent());
-
-            Message savedMessage = messageRepository.save(message);
-
-            EntityModel<Message> messageModel = messageModelAssembler.toModel(savedMessage);
-
-            return ResponseEntity.ok(messageModel);
-
-        } catch (Exception e) {
-            Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorModel);
+        if (messageOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                 .body(new MessageResponse("Message not found"));
         }
-    }
 
-    @GetMapping("/{chatUserId}")
+        Message message = messageOptional.get();
+
+        if (!message.getFromUser().getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                 .body(new MessageResponse("Forbidden: You cannot update this message"));
+        }
+
+        // Update the message content
+        message.setContent(updatedMessage.getContent());
+
+        Message savedMessage = messageRepository.save(message);
+
+        EntityModel<Message> messageModel = messageModelAssembler.toModel(savedMessage);
+
+        return ResponseEntity.ok(new MessageResponse("Message updated successfully", messageModel));
+
+    } catch (Exception e) {
+        Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
+        EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                             .body(new MessageResponse("Error updating message", errorModel));
+    }
+}
+
+    
+
+
+
+    @GetMapping("/chat/{chatUserId}")
     public ResponseEntity<CollectionModel<EntityModel<Message>>> getMessagesWithUser(@PathVariable Long chatUserId,
             HttpServletRequest request) throws UserException {
         try {
@@ -179,13 +189,15 @@ public class MessageController {
             User chatUser = userRepository.findById(chatUserId)
                     .orElseThrow(() -> new UserException("Chat user not found"));
 
+            updateMessageStatus(loggedInUser.getId(), chatUserId);
+
             List<Message> allMessagesBetweenTwoUsers = messageRepository
                     .findAllMessagesBetweenTwoUsers(loggedInUser.getId(), chatUserId);
 
-            allMessagesBetweenTwoUsers
-                    .forEach(message -> Hibernate.initialize(message.getRelationship().getMessageList()));
 
-            updateMessageStatus(loggedInUser.getId(), chatUserId);
+            // allMessagesBetweenTwoUsers
+            //         .forEach(message -> Hibernate.initialize(message.getRelationship().getMessageList()));
+
 
             List<EntityModel<Message>> messageModels = allMessagesBetweenTwoUsers.stream()
                     .map(messageModelAssembler::toModel)
@@ -248,11 +260,8 @@ public class MessageController {
 
             Page<Message> allUnreadMessages = messageRepository.getAllUnreadMessages(loggedInUser.getId(), pageable);
 
-            List<Message> allFriendsMessages = allUnreadMessages.stream()
-                    .filter(message -> message.getRelationship().getStatus() == 1)
-                    .collect(Collectors.toList());
 
-            List<EntityModel<Message>> messageModels = allFriendsMessages.stream()
+            List<EntityModel<Message>> messageModels = allUnreadMessages.getContent().stream()
                     .map(messageModelAssembler::toModel)
                     .collect(Collectors.toList());
 

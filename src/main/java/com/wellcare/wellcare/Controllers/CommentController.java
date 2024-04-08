@@ -82,7 +82,10 @@ public class CommentController {
             User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
 
             Optional<Post> optionalPost = postRepository.findById(postId);
-            Post post = optionalPost.orElseThrow(() -> new PostException("Post not found"));
+            if (optionalPost.isEmpty()) {
+                throw new PostException("Post not found");
+            }
+            Post post = optionalPost.get();
 
             comment.setUser(user);
             comment.setCreatedAt(LocalDateTime.now());
@@ -95,22 +98,22 @@ public class CommentController {
                 comment.setAttachment(url);
             }
 
-            comment.setPost(post);
 
-            Comment createdComment = commentRepository.save(comment);
-            post.getComments().add(createdComment);
+            commentRepository.save(comment);
+
+            post.getComments().add(comment);
             post.setNoOfComments(post.getNoOfComments() + 1);
             System.out.println("Incremented noOfComments to: " + post.getNoOfComments()); // Add logging
 
             postRepository.save(post);
 
-            return ResponseEntity.ok(commentModelAssembler.toModel(createdComment));
+            return ResponseEntity.ok(commentModelAssembler.toModel(comment));
         } catch (ResourceNotFoundException ex) {
             return ResponseEntity.notFound().build();
 
         }
     }
-
+    
     // to update a comment
     @PutMapping("/{commentId}")
     public ResponseEntity<EntityModel<Comment>> updateComment(@Valid @PathVariable Long commentId,
@@ -124,18 +127,22 @@ public class CommentController {
         Comment existingComment = optionalComment.get();
 
         existingComment.setContent(updatedComment.getContent());
+
         if (file != null && !file.isEmpty()) {
             System.out.println("Received file: " + file.getOriginalFilename());
             storageService.store(file);
             String filename = file.getOriginalFilename();
             String url = "http://localhost:8080/files/" + filename;
             existingComment.setAttachment(url);
-        } else {
+         } else if (updatedComment.getAttachment() != null) {
             existingComment.setAttachment(updatedComment.getAttachment());
-        }
+    
+         }
         commentRepository.save(existingComment);
         return ResponseEntity.ok(commentModelAssembler.toModel(existingComment));
     }
+
+  
 
     @Transactional
     @DeleteMapping("/{commentId}")
@@ -151,19 +158,28 @@ public class CommentController {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserException("User not found"));
 
-            Comment comment = commentRepository.findById(commentId)
-                    .orElseThrow(() -> new CommentException("Comment not found"));
+            
+            Optional<Comment> commentOptional = commentRepository.findById(commentId);
+            if (commentOptional.isEmpty()) {
+                        throw new CommentException("Comment not found");
+            }
+            
+            Comment comment = commentOptional.get();
 
             if (!comment.getUser().getId().equals(userId)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
             }
 
+            Optional<Post> postOptional = postRepository.findPostByCommentId(commentId);
+            if (postOptional.isEmpty()) {
+                throw new CommentException("Post not found for the comment!");
+            }
             comment.getCommentLikes().clear();
 
-            Post post = comment.getPost();
+
+            Post post = postOptional.get();
             post.getComments().remove(comment);
             post.setNoOfComments(post.getNoOfComments() - 1);
-            postRepository.save(post);
 
             commentRepository.deleteById(commentId);
 
@@ -171,7 +187,7 @@ public class CommentController {
         } catch (UserException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
         } catch (CommentException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("Comment not found!"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse(ex.getMessage()));
         }
     }
 
@@ -180,44 +196,46 @@ public class CommentController {
     public ResponseEntity<EntityModel<Comment>> toggleLikeComment(HttpServletRequest request,
             @PathVariable Long commentId)
             throws UserException, PostException, CommentException {
-
+    
         try {
             // Extract the JWT token from the request
             String jwtToken = authTokenFilter.parseJwt(request);
             System.out.println("Extracted JWT token: " + jwtToken);
-
+    
             // Parse the JWT token to extract the userId
             Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
             System.out.println("Extracted userId: " + userId);
-
+    
             // Retrieve the user from the repository
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserException("User not found"));
-
+    
             // Retrieve the comment from the repository
             Comment comment = commentRepository.findById(commentId)
                     .orElseThrow(() -> new CommentException("Comment not found"));
-
+    
             user = entityManager.merge(user);
-
+    
             // Toggle like status
             Set<User> likes = comment.getCommentLikes();
             if (likes.contains(user)) {
                 likes.remove(user);
-                comment.setNoOfLikes(comment.getNoOfLikes() - 1);
+                if (comment.getNoOfLikes() > 0) {
+                    comment.setNoOfLikes(comment.getNoOfLikes() - 1);
+                }
             } else {
                 likes.add(user);
                 comment.setNoOfLikes(comment.getNoOfLikes() + 1);
             }
-
+    
             Comment likedComment = commentRepository.save(comment);
             return ResponseEntity.ok(commentModelAssembler.toModel(likedComment));
-
+    
         } catch (UserException ex) {
             // Handle exceptions
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (CommentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-    }
-}
+            }}
+    

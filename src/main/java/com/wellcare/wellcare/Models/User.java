@@ -2,10 +2,12 @@ package com.wellcare.wellcare.Models;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -46,7 +48,6 @@ public class User {
     @JsonIgnore
     private String password;
 
-    @NotBlank
     @Email(message = "Please enter a valid email address")
     private String email;
 
@@ -69,7 +70,6 @@ public class User {
     @Min(0)
     private Integer friendsNumber = 0;
 
-    @JsonIgnore
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_friends", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "friend_id"))
     @JsonIgnoreProperties({ "password", "name", "attachment", "degree", "specialty", "friends", "friendsNumber",
@@ -139,12 +139,34 @@ public class User {
     }
 
     @Override
-    public String toString() {
+    public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    User user = (User) o;
+    return Objects.equals(id, user.id);
+}
+
+    @Override
+    public int hashCode() {
+    return Objects.hash(id);
+}
+
+
+@Override
+public String toString() {
+    if (ERole.PATIENT.equals(role)) {
         return "User [id=" + id + ", username=" + username + ", name=" + name
-                + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
-                + gender + ", image=" + image + ", role=" + role + ", savedPost="
-                + savedPost.size() + "]";
+            + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
+            + gender + ", image=" + image + ", role=" + role + ", savedPost="
+            + savedPost.size() + "]";
+    } else {
+        return "User [id=" + id + ", username=" + username + ", name=" + name
+            + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
+            + gender + ", image=" + image + ", attachment=" + attachment + ", degree=" + degree + ", specialty=" + specialty
+            + ", role=" + role + ", savedPost="
+            + savedPost.size() + "]";
     }
+}
 
     public interface Create extends Default {
     }
