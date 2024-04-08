@@ -99,7 +99,7 @@ public class MessageControllerTest {
         // Perform the request
         mockMvc.perform(MockMvcRequestBuilders.put("/api/messages/1")
                 .param("content", "Updated test message content")
-                .contentType(MediaType.MULTIPART_FORM_DATA))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
@@ -163,7 +163,7 @@ public class MessageControllerTest {
         // Perform the request
         mockMvc.perform(MockMvcRequestBuilders.put("/api/messages/2")
                 .param("content", "Updated test message content")
-                .contentType(MediaType.MULTIPART_FORM_DATA))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isOk());
     }
 

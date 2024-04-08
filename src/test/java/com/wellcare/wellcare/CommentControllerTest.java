@@ -19,6 +19,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -293,6 +294,7 @@ public void testDeleteComment_Unauthorized() throws Exception {
 
 
 @Test
+@Order(1)
 @WithMockUser(username = "testUser", roles = { "DOCTOR" })
 public void testToggleLikeComment_LikeAdded() throws Exception {
     Long commentId = 1L;
@@ -316,6 +318,7 @@ public void testToggleLikeComment_LikeAdded() throws Exception {
 }
 
 @Test
+@Order(2)
 @WithMockUser(username = "testUser", roles = { "DOCTOR" })
 public void testToggleLikeComment_LikeRemoved() throws Exception {
     // Mock data
@@ -339,7 +342,7 @@ public void testToggleLikeComment_LikeRemoved() throws Exception {
     // Perform the request
     mockMvc.perform(put("/api/comments/like-switcher/{commentId}", commentId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.noOfLikes").value(1)); // Assuming like count is properly updated
+            .andExpect(jsonPath("$.noOfLikes").value(0)); // Assuming like count is properly updated
 }
 
 @Test

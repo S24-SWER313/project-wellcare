@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.hibernate.Hibernate;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -90,9 +93,13 @@ public class MessageController {
             User loggedInUser = userRepository.findById(loggedInUserId)
                     .orElseThrow(() -> new UserException("User not found"));
     
-            User toUser = userRepository.findById(userId)
-                    .orElseThrow(() -> new UserException("Recipient not found"));    
-                  
+            Optional<User> toUserOptional = userRepository.findById(userId);
+            if (toUserOptional.isEmpty()) {
+                        return ResponseEntity.badRequest()
+                                             .body(EntityModel.of(new MessageResponse("Recipient not found")));
+            }
+              
+            User toUser = toUserOptional.get();
             
             List<String> attachmentUrls = storeAttachments(files);
     
@@ -127,42 +134,46 @@ public class MessageController {
     
 
     @PutMapping("/{messageId}")
-    public ResponseEntity<EntityModel<Message>> updateMessage(@Valid @PathVariable Long messageId,
-            @ModelAttribute Message updatedMessage,
-            HttpServletRequest request) {
-        try {
-            String jwtToken = authTokenFilter.parseJwt(request);
-            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-    
-            Message message = messageRepository.findById(messageId)
-                    .orElseThrow(() -> new MessageException("Message not found"));
-    
-            if (!message.getFromUser().getId().equals(userId)) {
-                Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-                EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
-                return ResponseEntity.badRequest().body(errorModel);
-            }
-    
-            // Update the message content
-            message.setContent(updatedMessage.getContent());
-    
-            Message savedMessage = messageRepository.save(message);
-    
-            EntityModel<Message> messageModel = messageModelAssembler.toModel(savedMessage);
-    
-            return ResponseEntity.ok(messageModel);
-    
-        } catch (MessageException e) {
-            Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorModel);
-        } catch (Exception e) {
-            Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
-            EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorModel);
+public ResponseEntity<MessageResponse> updateMessage(@Valid @PathVariable Long messageId,
+                                                     @RequestBody Message updatedMessage,
+                                                     HttpServletRequest request) {
+    try {
+        String jwtToken = authTokenFilter.parseJwt(request);
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+
+        Optional<Message> messageOptional = messageRepository.findById(messageId);
+
+        if (messageOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                 .body(new MessageResponse("Message not found"));
         }
+
+        Message message = messageOptional.get();
+
+        if (!message.getFromUser().getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                 .body(new MessageResponse("Forbidden: You cannot update this message"));
+        }
+
+        // Update the message content
+        message.setContent(updatedMessage.getContent());
+
+        Message savedMessage = messageRepository.save(message);
+
+        EntityModel<Message> messageModel = messageModelAssembler.toModel(savedMessage);
+
+        return ResponseEntity.ok(new MessageResponse("Message updated successfully", messageModel));
+
+    } catch (Exception e) {
+        Link link = linkTo(methodOn(MessageController.class).getUnreadMessages(request, null)).withSelfRel();
+        EntityModel<Message> errorModel = EntityModel.of(new Message(), link);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                             .body(new MessageResponse("Error updating message", errorModel));
     }
+}
+
     
+
 
 
     @GetMapping("/chat/{chatUserId}")
