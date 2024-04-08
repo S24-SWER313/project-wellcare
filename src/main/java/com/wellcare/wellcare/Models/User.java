@@ -152,13 +152,21 @@ public class User {
 }
 
 
-    @Override
-    public String toString() {
+@Override
+public String toString() {
+    if (ERole.PATIENT.equals(role)) {
         return "User [id=" + id + ", username=" + username + ", name=" + name
-                + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
-                + gender + ", image=" + image + ", role=" + role + ", savedPost="
-                + savedPost.size() + "]";
+            + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
+            + gender + ", image=" + image + ", role=" + role + ", savedPost="
+            + savedPost.size() + "]";
+    } else {
+        return "User [id=" + id + ", username=" + username + ", name=" + name
+            + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
+            + gender + ", image=" + image + ", attachment=" + attachment + ", degree=" + degree + ", specialty=" + specialty
+            + ", role=" + role + ", savedPost="
+            + savedPost.size() + "]";
     }
+}
 
     public interface Create extends Default {
     }

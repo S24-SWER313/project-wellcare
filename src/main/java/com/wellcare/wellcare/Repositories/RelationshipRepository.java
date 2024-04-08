@@ -42,5 +42,13 @@ public interface RelationshipRepository extends JpaRepository<Relationship, Long
 
         List<Relationship> findRelationshipsByUserTwoIdAndStatus(Long userTwoId, int status);
 
+        List<Relationship> findRelationshipsByUserOneIdAndStatus(Long userId, int status);
+
+        boolean existsByUserOneIdAndUserTwoIdAndStatus(Long userOneId, Long userTwoId, int status);
+
+
+
+
+
 }
 

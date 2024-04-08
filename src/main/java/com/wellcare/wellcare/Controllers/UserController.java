@@ -71,9 +71,9 @@ public class UserController {
 
     @PutMapping("/profile")
     @Transactional
-    public ResponseEntity<MessageResponse> updateUserProfile(HttpServletRequest request,
+    public ResponseEntity<?> updateUserProfile(HttpServletRequest request,
             @Valid @ModelAttribute User updatedUser,
-            @RequestParam(value = "file", required = false) MultipartFile file) throws UserException {
+            @RequestParam(value = "profile_picture", required = false) MultipartFile file) throws UserException {
     
         String jwtToken = authTokenFilter.parseJwt(request);
         System.out.println("Extracted JWT token: " + jwtToken);
@@ -129,9 +129,9 @@ public class UserController {
             userExisting.setUsername(existingUsername);
             userExisting.setPassword(existingPassword);
     
-            userRepository.save(userExisting);
+            User savedUser = userRepository.save(userExisting);
     
-            return ResponseEntity.ok().body(new MessageResponse("User profile updated successfully"));
+            return ResponseEntity.ok().body(new MessageResponse("User profile updated successfully", savedUser));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
@@ -142,10 +142,10 @@ public class UserController {
     @PreAuthorize("hasAuthority('DOCTOR')")
     @PutMapping("/profile/doctor")
     @Transactional
-    public ResponseEntity<Map<String, String>> updateDoctorProfile(HttpServletRequest request,
+    public ResponseEntity<?> updateDoctorProfile(HttpServletRequest request,
                                                                   @RequestParam("specialty") String specialty,
                                                                   @RequestParam("degree") String degree,
-                                                                  @RequestParam(value = "file", required = false) MultipartFile file) throws UserException {
+                                                                  @RequestParam(value = "attachment", required = false) MultipartFile file) throws UserException {
     
         try {
             String jwtToken = authTokenFilter.parseJwt(request);
@@ -180,9 +180,9 @@ public class UserController {
                 userToUpdate.setAttachment(userToUpdate.getAttachment());
             }
     
-            userRepository.save(userToUpdate);
+            User savedUser = userRepository.save(userToUpdate);
     
-            return ResponseEntity.ok().body(Collections.singletonMap("message", "Doctor profile updated successfully"));
+            return ResponseEntity.ok().body(new MessageResponse("Doctor profile updated successfully", savedUser));
     
         } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -192,14 +192,8 @@ public class UserController {
                     .body(Collections.singletonMap("message", "Access is denied"));
         }
     }
-    
-
-    
-    
-    
-
-
-    @PutMapping("/profile/password")
+        
+@PutMapping("/profile/password")
 @Transactional
 public ResponseEntity<MessageResponse> updateUserPassword(HttpServletRequest request,
                                                            @RequestBody Map<String, String> passwordMap) throws UserException {
@@ -231,7 +225,7 @@ public ResponseEntity<MessageResponse> updateUserPassword(HttpServletRequest req
                     .body(new MessageResponse("Password should have at least 8 characters"));
         }
 
-        if (newPassword.equals(user.getPassword())) {
+        if (encoder.matches(newPassword, user.getPassword())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new MessageResponse("Password isn't updated"));
         }

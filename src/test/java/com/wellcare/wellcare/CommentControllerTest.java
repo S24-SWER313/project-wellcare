@@ -115,6 +115,33 @@ public class CommentControllerTest {
 
     @Test
     @WithMockUser(username = "testUser", roles = { "DOCTOR" })
+    public void testUpdateComment_withFile() throws Exception {
+        Comment existingComment = new Comment();
+        existingComment.setId(1L);
+        existingComment.setContent("Existing content");
+        existingComment.setCreatedAt(LocalDateTime.now());
+
+        Comment updatedComment = new Comment();
+        updatedComment.setId(1L);
+        updatedComment.setContent("Updated content");
+
+        when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("testToken");
+        when(jwtUtils.getUserIdFromJwtToken("testToken")).thenReturn(1L);
+        when(commentRepository.findById(1L)).thenReturn(Optional.of(existingComment));
+        when(commentRepository.save(any(Comment.class))).thenReturn(updatedComment);
+
+        MockMultipartFile file = new MockMultipartFile("file", "filename.txt", "text/plain", "fileContent".getBytes());
+
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/comments/1")
+                .file(file)
+                .param("comment", asJsonString(updatedComment))
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(MockMvcResultMatchers.status().isOk());
+    }
+
+
+    @Test
+    @WithMockUser(username = "testUser", roles = { "DOCTOR" })
     public void testDeleteComment() throws Exception {
         Comment comment = new Comment();
         comment.setId(1L);
@@ -126,6 +153,48 @@ public class CommentControllerTest {
 
         mockMvc.perform(MockMvcRequestBuilders.delete("/api/comments/1"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "testUser", roles = { "DOCTOR" })
+    public void testDeleteCommentNotFound() throws Exception {
+        when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("testToken");
+        when(jwtUtils.getUserIdFromJwtToken("testToken")).thenReturn(1L);
+        when(commentRepository.findById(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(MockMvcRequestBuilders.delete("/api/comments/1"))
+                .andExpect(MockMvcResultMatchers.status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(username = "testUser", roles = { "DOCTOR" })
+    public void testCreateCommentInvalidPostId() throws Exception {
+        Comment comment = new Comment();
+        comment.setContent("Test content");
+        comment.setCreatedAt(LocalDateTime.now());
+
+        when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("testToken");
+        when(jwtUtils.getUserIdFromJwtToken("testToken")).thenReturn(1L);
+        when(postRepository.findById(1L)).thenReturn(Optional.empty());
+
+        MockMultipartFile file = new MockMultipartFile("file", "filename.txt", "text/plain", "fileContent".getBytes());
+
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/comments/1")
+                .file(file)
+                .param("comment", asJsonString(comment))
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(MockMvcResultMatchers.status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "testUser", roles = { "DOCTOR" })
+    public void testToggleLikeCommentNotFound() throws Exception {
+        when(authTokenFilter.parseJwt(any(HttpServletRequest.class))).thenReturn("testToken");
+        when(jwtUtils.getUserIdFromJwtToken("testToken")).thenReturn(1L);
+        when(commentRepository.findById(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/comments/like-switcher/1"))
+                .andExpect(MockMvcResultMatchers.status().isNotFound());
     }
 
     @Test

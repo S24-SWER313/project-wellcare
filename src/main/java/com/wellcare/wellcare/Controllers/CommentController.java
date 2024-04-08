@@ -82,7 +82,10 @@ public class CommentController {
             User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
 
             Optional<Post> optionalPost = postRepository.findById(postId);
-            Post post = optionalPost.orElseThrow(() -> new PostException("Post not found"));
+            if (optionalPost.isEmpty()) {
+                throw new PostException("Post not found");
+            }
+            Post post = optionalPost.get();
 
             comment.setUser(user);
             comment.setCreatedAt(LocalDateTime.now());
@@ -124,15 +127,17 @@ public class CommentController {
         Comment existingComment = optionalComment.get();
 
         existingComment.setContent(updatedComment.getContent());
+
         if (file != null && !file.isEmpty()) {
             System.out.println("Received file: " + file.getOriginalFilename());
             storageService.store(file);
             String filename = file.getOriginalFilename();
             String url = "http://localhost:8080/files/" + filename;
             existingComment.setAttachment(url);
-        } else {
+         } else if (updatedComment.getAttachment() != null) {
             existingComment.setAttachment(updatedComment.getAttachment());
-        }
+    
+         }
         commentRepository.save(existingComment);
         return ResponseEntity.ok(commentModelAssembler.toModel(existingComment));
     }
@@ -152,8 +157,12 @@ public class CommentController {
                     .orElseThrow(() -> new UserException("User not found"));
 
             
-            Comment comment = commentRepository.findById(commentId)
-                    .orElseThrow(() -> new CommentException("Comment not found"));
+            Optional<Comment> commentOptional = commentRepository.findById(commentId);
+            if (commentOptional.isEmpty()) {
+                        throw new CommentException("Comment not found");
+            }
+            
+            Comment comment = commentOptional.get();
 
             if (!comment.getUser().getId().equals(userId)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
@@ -176,7 +185,7 @@ public class CommentController {
         } catch (UserException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new MessageResponse("Unauthorized!"));
         } catch (CommentException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("Comment not found!"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse(ex.getMessage()));
         }
     }
 

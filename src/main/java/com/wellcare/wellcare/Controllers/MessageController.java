@@ -46,8 +46,16 @@ import com.wellcare.wellcare.payload.response.MessageResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
+/* message status = 0 => message is unread
+ * message status = 1 => message is read
+ * users can send messages to each other and update them regardless if they're friends or not.
+ * getMessagesWithUser: user1 can see the chat between him and a specific user, if the status = 0, the status will become 1
+ * getRecentConversations: user1 can see the chat between him and many users, status can be 0 or 1, but if status is 0, it doesn't change to 1 in it
+ * getUnreadMessages: user1 can see all the unread messages where status = 0 between him and many users, status remain 0 here
+ */
+
 @RestController
-@RequestMapping("/api/message")
+@RequestMapping("/api/messages")
 public class MessageController {
 
     @Autowired
@@ -70,7 +78,7 @@ public class MessageController {
     MessageModelAssembler messageModelAssembler;
 
     @Transactional
-    @PostMapping("/sending/{userId}")
+    @PostMapping("/new-message/{userId}")
     public ResponseEntity<EntityModel<?>> sendMessage(@Valid @PathVariable Long userId,
             @ModelAttribute Message message,
             @RequestParam(value = "file", required = false) MultipartFile[] files,
@@ -118,7 +126,7 @@ public class MessageController {
     }
     
 
-    @PutMapping("/update/{messageId}")
+    @PutMapping("/{messageId}")
     public ResponseEntity<EntityModel<Message>> updateMessage(@Valid @PathVariable Long messageId,
             @ModelAttribute Message updatedMessage,
             HttpServletRequest request) {
@@ -157,7 +165,7 @@ public class MessageController {
     
 
 
-    @GetMapping("/{chatUserId}")
+    @GetMapping("/chat/{chatUserId}")
     public ResponseEntity<CollectionModel<EntityModel<Message>>> getMessagesWithUser(@PathVariable Long chatUserId,
             HttpServletRequest request) throws UserException {
         try {
