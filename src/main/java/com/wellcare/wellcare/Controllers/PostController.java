@@ -1,5 +1,8 @@
 package com.wellcare.wellcare.Controllers;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -54,6 +58,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
+
+@CrossOrigin(origins = "http://localhost:3000")
 @RestController
 @RequestMapping("/api/posts")
 public class PostController {
@@ -81,7 +87,7 @@ public class PostController {
     @Autowired
     private EntityManager entityManager;
 
-    @Transactional
+@Transactional
 @PostMapping("/new-post")
 public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
         @Valid @ModelAttribute Post post,
@@ -120,6 +126,7 @@ public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
             }
         }
 
+      
         post.setAttachment(attachmentUrls); // Set attachments to the post
 
         Post createdPost = postRepository.save(post);
@@ -257,35 +264,35 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
             @RequestParam(required = false) Boolean friendsOnly,
             Pageable pageable,
             @AuthenticationPrincipal UserDetailsImpl userDetails) throws UserException {
-
+    
         Page<Post> postsPage;
-
+    
         if (role != null && Boolean.TRUE.equals(friendsOnly)) {
             // Filter posts based on role and following
             if (userDetails != null && userDetails.getId() != null) {
                 List<User> friendsUsers = userRepository.findById(userDetails.getId())
                         .orElseThrow(() -> new UserException("User not found")).getFriends();
-
+    
                 List<User> usersByRole = userRepository.findAllUsersByRole(role);
                 if (usersByRole.isEmpty()) {
-                    throw new ResourceNotFoundException("Users", null,
-                            new Throwable("No users found for the given role"));
+                    // Return empty response if no users found for the given role
+                    return ResponseEntity.ok(PagedModel.empty());
                 }
-
+    
                 List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
                 postsPage = postRepository.findAllPostsByUserIds(userIds, pageable);
-
+    
                 if (postsPage.isEmpty()) {
-                    throw new ResourceNotFoundException("Posts", null,
-                            new Throwable("No posts found for the given role"));
+                    // Return empty response if no posts found for the given role
+                    return ResponseEntity.ok(PagedModel.empty());
                 }
-
+    
                 List<Post> roleBasedPosts = postsPage.getContent().stream()
                         .filter(post -> friendsUsers.contains(post.getUser()))
                         .collect(Collectors.toList());
-
+    
                 postsPage = new PageImpl<>(roleBasedPosts, pageable, roleBasedPosts.size());
-
+    
             } else {
                 throw new UserException("User details not found");
             }
@@ -293,22 +300,24 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
             // Filter posts based on role
             List<User> usersByRole = userRepository.findAllUsersByRole(role);
             if (usersByRole.isEmpty()) {
-                throw new UserException("No users found for the given role");
+                // Return empty response if no users found for the given role
+                return ResponseEntity.ok(PagedModel.empty());
             }
-
+    
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
             postsPage = postRepository.findAllPostsByUserIds(userIds, pageable);
-
+    
             if (postsPage.isEmpty()) {
-                throw new ResourceNotFoundException("Posts", null, new Throwable("No posts found for the given role"));
+                // Return empty response if no posts found for the given role
+                return ResponseEntity.ok(PagedModel.empty());
             }
         } else if (Boolean.TRUE.equals(friendsOnly)) {
             // Filter posts to show only those from people the user follows
             if (userDetails != null && userDetails.getId() != null) {
                 List<User> followingUsers = userRepository.findById(userDetails.getId())
                         .orElseThrow(() -> new UserException("User not found")).getFriends();
-                postsPage = new PageImpl<>(postRepository.findAllByUserInOrderByCreatedAtDesc(followingUsers), pageable,
-                        followingUsers.size());
+                List<Post> followingUsersPosts = postRepository.findAllByUserInOrderByCreatedAtDesc(followingUsers);
+                postsPage = new PageImpl<>(followingUsersPosts, pageable, followingUsersPosts.size());
             } else {
                 throw new UserException("User details not found");
             }
@@ -316,9 +325,9 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
             // Fetch all posts
             postsPage = postRepository.findAllWithLikesAndComments(pageable);
         }
-
+    
         PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(postsPage, postModelAssembler);
-
+    
         return ResponseEntity.ok(pagedModel);
     }
 
@@ -438,6 +447,19 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
             ex.printStackTrace();
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/{postId}/comments")
+    public ResponseEntity<List<Comment>> getCommentsForPost(@PathVariable Long postId) {
+        Optional<Post> optionalPost = postRepository.findById(postId);
+        if (optionalPost.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Post post = optionalPost.get();
+        List<Comment> comments = post.getComments();
+
+        return ResponseEntity.ok(comments);
     }
 
 }

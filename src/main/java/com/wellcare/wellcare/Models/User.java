@@ -70,6 +70,10 @@ public class User {
     @Min(0)
     private Integer friendsNumber = 0;
 
+  
+
+    
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_friends", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "friend_id"))
     @JsonIgnoreProperties({ "password", "name", "attachment", "degree", "specialty", "friends", "friendsNumber",
@@ -81,12 +85,19 @@ public class User {
         if (!this.friends.contains(friend)) {
             this.friends.add(friend);
             friend.getFriends().add(this);
+            friendsNumber++;
+
         }
     }
 
     public void removeFriend(User friend) {
         this.friends.remove(friend);
         friend.getFriends().remove(this);
+        friendsNumber--;
+    }
+
+    public int getPostsCount() {
+        return savedPost.size();
     }
 
     @ManyToMany(fetch = FetchType.EAGER)

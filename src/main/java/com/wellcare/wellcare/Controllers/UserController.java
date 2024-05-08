@@ -10,9 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -30,7 +28,6 @@ import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
-import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
@@ -243,6 +240,7 @@ public ResponseEntity<MessageResponse> updateUserPassword(HttpServletRequest req
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new MessageResponse("Unauthorized: Full authentication is required to access this resource"));
     }
+    
 }
 
 
