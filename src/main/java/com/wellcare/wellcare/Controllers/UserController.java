@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +40,7 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:3000") // Allow requests from localhost:3000
 @RequestMapping("/api/users")
 public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);

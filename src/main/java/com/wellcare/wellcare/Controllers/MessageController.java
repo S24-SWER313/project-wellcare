@@ -21,6 +21,7 @@ import org.springframework.hateoas.Link;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -81,6 +82,7 @@ public class MessageController {
     MessageModelAssembler messageModelAssembler;
 
     @Transactional
+    @CrossOrigin(origins = "http://localhost:3000") // Allow requests from localhost:3000
     @PostMapping("/new-message/{userId}")
     public ResponseEntity<EntityModel<?>> sendMessage(@Valid @PathVariable Long userId,
             @ModelAttribute Message message,
