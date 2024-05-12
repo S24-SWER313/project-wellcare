@@ -1,10 +1,12 @@
 package com.wellcare.wellcare.Controllers;
 
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +24,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -35,6 +38,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.wellcare.wellcare.Assemblers.PostModelAssembler;
 import com.wellcare.wellcare.Exceptions.PostException;
@@ -50,6 +54,7 @@ import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
+import com.wellcare.wellcare.Storage.StorageException;
 import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
@@ -87,6 +92,8 @@ public class PostController {
     @Autowired
     private EntityManager entityManager;
 
+   
+
 @Transactional
 @PostMapping("/new-post")
 public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
@@ -115,13 +122,13 @@ public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
         post.setCreatedAt(LocalDateTime.now());
 
         List<String> attachmentUrls = new ArrayList<>();
+      
         
         if (files != null) {
             for (MultipartFile file : files) {
                 System.out.println("Received file: " + file.getOriginalFilename());
-                storageService.store(file);
-                String filename = file.getOriginalFilename();
-                String url = "http://localhost:8080/files/" + filename;
+                String fileName = storageService.store(file); 
+                String url = "http://localhost:8080/files/" + fileName;
                 attachmentUrls.add(url);
             }
         }
@@ -146,7 +153,7 @@ public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
     }
 }
 
-    
+
 @Transactional
 @PutMapping("/{postId}")
 public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,

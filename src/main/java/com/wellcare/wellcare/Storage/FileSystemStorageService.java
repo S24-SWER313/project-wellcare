@@ -30,34 +30,58 @@ public class FileSystemStorageService implements StorageService {
 			throw new StorageException("File upload location can not be Empty.");
 		}
 
-		this.rootLocation = Paths.get(properties.getLocation());
+		this.rootLocation = Paths.get(properties.getLocation()).toAbsolutePath();
 		init();
 	}
 
 	@Override
-    public void store(MultipartFile file) {
-        try {
-            if (file.isEmpty()) {
-                throw new StorageException("Failed to store empty file.");
-            }
-            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
-            String uniqueFilename = generateUniqueFilename(originalFilename); // Generate a unique filename or identifier
-            Path destinationFile = this.rootLocation.resolve(uniqueFilename).normalize().toAbsolutePath();
-            if (!destinationFile.getParent().equals(this.rootLocation.toAbsolutePath())) {
-                throw new StorageException("Cannot store file outside current directory.");
-            }
-            try (InputStream inputStream = file.getInputStream()) {
-                Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            throw new StorageException("Failed to store file.", e);
+	public String store(MultipartFile file) {
+    try {
+        if (file.isEmpty()) {
+            throw new StorageException("Failed to store empty file.");
         }
+        String originalFilename = StringUtils.cleanPath(file.getOriginalFilename()); // Clean the file name
+        Path destinationFile = this.rootLocation.resolve(
+                Paths.get(originalFilename))
+                .normalize().toAbsolutePath();
+        if (!destinationFile.getParent().equals(this.rootLocation.toAbsolutePath())) {
+            // This is a security check
+            throw new StorageException(
+                    "Cannot store file outside current directory.");
+        }
+        try (InputStream inputStream = file.getInputStream()) {
+            Files.copy(inputStream, destinationFile,
+                    StandardCopyOption.REPLACE_EXISTING);
+        }
+        return originalFilename; // Return the filename after storing the file
+    } catch (IOException e) {
+        throw new StorageException("Failed to store file.", e);
     }
+}
 
-	private String generateUniqueFilename(String originalFilename) {
-        return UUID.randomUUID().toString();
-	   }
 
+
+	   
+	   @Override
+	   public String saveImage(MultipartFile file) {
+		try {
+			if (file.isEmpty()) {
+				throw new StorageException("Failed to store empty file.");
+			}
+			// Generate a unique filename or identifier
+			String uniqueFilename = UUID.randomUUID().toString();
+			// Define the target directory
+			Path destinationFile = this.rootLocation.resolve(uniqueFilename).normalize().toAbsolutePath();
+			// Copy the file to the target directory
+			try (InputStream inputStream = file.getInputStream()) {
+				Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
+			}
+			// Return the URL of the saved image
+			return "/files" + uniqueFilename; // Adjust this to return the appropriate URL for your application
+		} catch (IOException e) {
+			throw new StorageException("Failed to store file.", e);
+		}
+	}
 	@Override
 	public Stream<Path> loadAll() {
 		try {
