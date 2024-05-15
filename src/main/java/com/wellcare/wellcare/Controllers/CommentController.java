@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
+import java.util.List;
 import com.wellcare.wellcare.Assemblers.CommentModelAssembler;
 import com.wellcare.wellcare.Exceptions.CommentException;
 import com.wellcare.wellcare.Exceptions.PostException;
@@ -98,7 +99,6 @@ public class CommentController {
                 comment.setAttachment(url);
             }
 
-
             commentRepository.save(comment);
 
             post.getComments().add(comment);
@@ -113,7 +113,7 @@ public class CommentController {
 
         }
     }
-    
+
     // to update a comment
     @PutMapping("/{commentId}")
     public ResponseEntity<EntityModel<Comment>> updateComment(@Valid @PathVariable Long commentId,
@@ -134,15 +134,14 @@ public class CommentController {
             String filename = file.getOriginalFilename();
             String url = "http://localhost:8080/files/" + filename;
             existingComment.setAttachment(url);
-         } else if (updatedComment.getAttachment() != null) {
+        } else if (updatedComment.getAttachment() != null) {
             existingComment.setAttachment(updatedComment.getAttachment());
-    
-         }
+
+        }
         commentRepository.save(existingComment);
         return ResponseEntity.ok(commentModelAssembler.toModel(existingComment));
     }
 
-  
 
     @Transactional
     @DeleteMapping("/{commentId}")
@@ -158,12 +157,11 @@ public class CommentController {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserException("User not found"));
 
-            
             Optional<Comment> commentOptional = commentRepository.findById(commentId);
             if (commentOptional.isEmpty()) {
-                        throw new CommentException("Comment not found");
+                throw new CommentException("Comment not found");
             }
-            
+
             Comment comment = commentOptional.get();
 
             if (!comment.getUser().getId().equals(userId)) {
@@ -175,7 +173,6 @@ public class CommentController {
                 throw new CommentException("Post not found for the comment!");
             }
             comment.getCommentLikes().clear();
-
 
             Post post = postOptional.get();
             post.getComments().remove(comment);
@@ -196,26 +193,26 @@ public class CommentController {
     public ResponseEntity<EntityModel<Comment>> toggleLikeComment(HttpServletRequest request,
             @PathVariable Long commentId)
             throws UserException, PostException, CommentException {
-    
+
         try {
             // Extract the JWT token from the request
             String jwtToken = authTokenFilter.parseJwt(request);
             System.out.println("Extracted JWT token: " + jwtToken);
-    
+
             // Parse the JWT token to extract the userId
             Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
             System.out.println("Extracted userId: " + userId);
-    
+
             // Retrieve the user from the repository
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserException("User not found"));
-    
+
             // Retrieve the comment from the repository
             Comment comment = commentRepository.findById(commentId)
                     .orElseThrow(() -> new CommentException("Comment not found"));
-    
+
             user = entityManager.merge(user);
-    
+
             // Toggle like status
             Set<User> likes = comment.getCommentLikes();
             if (likes.contains(user)) {
@@ -227,15 +224,15 @@ public class CommentController {
                 likes.add(user);
                 comment.setNoOfLikes(comment.getNoOfLikes() + 1);
             }
-    
+
             Comment likedComment = commentRepository.save(comment);
             return ResponseEntity.ok(commentModelAssembler.toModel(likedComment));
-    
+
         } catch (UserException ex) {
             // Handle exceptions
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (CommentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-            }}
-    
+    }
+}

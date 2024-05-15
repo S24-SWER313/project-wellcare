@@ -33,7 +33,6 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @Pattern(regexp = "(https?://.*\\.(?:png|jpg|gif|bmp|jpeg|mp4))", message = "Attachment must be a valid photo or video URL")
     private String attachment;
 
     @ManyToOne
@@ -63,7 +62,7 @@ public class Comment {
     @AssertTrue(message = "Either attachment or content must be provided")
     public boolean isEitherAttachmentOrContentValid() {
         if (content == null || content.isBlank()) {
-            return attachment != null && !attachment.isBlank();
+            return attachment == null || attachment.isBlank();
         } else {
             return true;
         }

@@ -1,6 +1,7 @@
 package com.wellcare.wellcare.Controllers;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -10,9 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -30,7 +29,6 @@ import com.wellcare.wellcare.Models.User;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
-import com.wellcare.wellcare.Security.services.UserDetailsImpl;
 import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
@@ -57,12 +55,29 @@ public class UserController {
     @Autowired
     private AuthTokenFilter authTokenFilter;
 
-    @GetMapping("/profile/{userId}")
-    public ResponseEntity<?> getUserProfile(@PathVariable Long userId) {
-        Optional<User> userOptional = userRepository.findById(userId);
+    @GetMapping("/profile/{username}")
+    public ResponseEntity<?> getUserProfile(@PathVariable String username) {
+        Optional<User> userOptional = userRepository.findByUsername(username);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
             user.getSavedPost().size();
+            return ResponseEntity.ok().body(user);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+    }
+
+    @GetMapping("/loggedin-profile")
+    public ResponseEntity<?> getLoggedInUserProfile(HttpServletRequest request) {
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
+    
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+    
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
             return ResponseEntity.ok().body(user);
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
@@ -243,6 +258,16 @@ public ResponseEntity<MessageResponse> updateUserPassword(HttpServletRequest req
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new MessageResponse("Unauthorized: Full authentication is required to access this resource"));
     }
+    
+}
+
+@GetMapping("/search")
+public ResponseEntity<List<User>> searchUserHandler(@RequestParam("q") String query) throws UserException{
+    List<User> users = userRepository.findByQuery(query);
+
+    if(users.size()==0) throw new UserException("User is not found.");
+
+    return new ResponseEntity<List<User>>(users, HttpStatus.OK);
 }
 
 
