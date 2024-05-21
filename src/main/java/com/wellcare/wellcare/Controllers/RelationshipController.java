@@ -351,4 +351,25 @@ public ResponseEntity<?> getFriendRequests(HttpServletRequest request) {
 
                 return savedRelationship != null;
         }
+
+        @GetMapping("/{userId}/friends")
+   public ResponseEntity<?> getUserFriends(@PathVariable Long userId) {
+    try {
+        Optional<User> userOptional = userRepository.findById(userId);
+
+        if (userOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new MessageResponse("User not found"));
+        }
+
+        User user = userOptional.get();
+        List<User> friends = user.getFriends();
+
+        return ResponseEntity.ok(friends);
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new MessageResponse("Error fetching user friends: " + e.getMessage()));
+    }
+}
+
 }
