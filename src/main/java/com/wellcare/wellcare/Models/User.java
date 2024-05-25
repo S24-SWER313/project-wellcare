@@ -18,10 +18,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.groups.Default;
@@ -74,14 +74,14 @@ public class User {
     @Min(0)
     private Integer postsCount = 0;
 
-    
-
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_friends", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "friend_id"))
     @JsonIgnoreProperties({ "password", "name", "attachment", "degree", "specialty", "friends", "friendsNumber",
             "email", "mobile", "bio", "gender", "image", "role",
             "savedPost" })
     private List<User> friends = new ArrayList<>();
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Story> stories = new ArrayList<>();
 
     public void addFriend(User friend) {
         if (!this.friends.contains(friend)) {
@@ -97,8 +97,6 @@ public class User {
         friend.getFriends().remove(this);
         friendsNumber--;
     }
-
-   
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_saved_posts", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "post_id"))
@@ -151,33 +149,35 @@ public class User {
 
     @Override
     public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    User user = (User) o;
-    return Objects.equals(id, user.id);
-}
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        User user = (User) o;
+        return Objects.equals(id, user.id);
+    }
 
     @Override
     public int hashCode() {
-    return Objects.hash(id);
-}
-
-
-@Override
-public String toString() {
-    if (ERole.PATIENT.equals(role)) {
-        return "User [id=" + id + ", username=" + username + ", name=" + name
-            + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
-            + gender + ", image=" + image + ", role=" + role + ", savedPost="
-            + savedPost.size() + "]";
-    } else {
-        return "User [id=" + id + ", username=" + username + ", name=" + name
-            + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
-            + gender + ", image=" + image + ", attachment=" + attachment + ", degree=" + degree + ", specialty=" + specialty
-            + ", role=" + role + ", savedPost="
-            + savedPost.size() + "]";
+        return Objects.hash(id);
     }
-}
+
+    @Override
+    public String toString() {
+        if (ERole.PATIENT.equals(role)) {
+            return "User [id=" + id + ", username=" + username + ", name=" + name
+                    + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
+                    + gender + ", image=" + image + ", role=" + role + ", savedPost="
+                    + savedPost.size() + "]";
+        } else {
+            return "User [id=" + id + ", username=" + username + ", name=" + name
+                    + ", email=" + email + ", mobile=" + mobile + ", bio=" + bio + ", gender="
+                    + gender + ", image=" + image + ", attachment=" + attachment + ", degree=" + degree + ", specialty="
+                    + specialty
+                    + ", role=" + role + ", savedPost="
+                    + savedPost.size() + "]";
+        }
+    }
 
     public interface Create extends Default {
     }
