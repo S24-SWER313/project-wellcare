@@ -23,8 +23,8 @@ public class RelationshipModelAssembler implements RepresentationModelAssembler<
     public EntityModel<Relationship> toModel(Relationship relationship) {
         return EntityModel.of(relationship,
                         linkTo(methodOn(RelationshipController.class).getFriendRequests(null)).withRel("friendRequests"),
-                        linkTo(methodOn(RelationshipController.class).acceptFriend(null, relationship.getUserOne().getId())).withRel("acceptFriend"),
-                        linkTo(methodOn(RelationshipController.class).cancelFriendshipRequest(null, relationship.getUserOne().getId())).withRel("cancelFriendshipRequest")
+                        linkTo(methodOn(RelationshipController.class).acceptFriend(null, relationship.getUserOne().getUsername())).withRel("acceptFriend"),
+                        linkTo(methodOn(RelationshipController.class).cancelFriendshipRequest(null, relationship.getUserOne().getUsername())).withRel("cancelFriendshipRequest")
         );
     }
 

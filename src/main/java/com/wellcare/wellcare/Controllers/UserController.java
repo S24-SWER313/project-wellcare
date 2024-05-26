@@ -1,6 +1,7 @@
 package com.wellcare.wellcare.Controllers;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -54,12 +55,29 @@ public class UserController {
     @Autowired
     private AuthTokenFilter authTokenFilter;
 
-    @GetMapping("/profile/{userId}")
-    public ResponseEntity<?> getUserProfile(@PathVariable Long userId) {
-        Optional<User> userOptional = userRepository.findById(userId);
+    @GetMapping("/profile/{username}")
+    public ResponseEntity<?> getUserProfile(@PathVariable String username) {
+        Optional<User> userOptional = userRepository.findByUsername(username);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
             user.getSavedPost().size();
+            return ResponseEntity.ok().body(user);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+    }
+
+    @GetMapping("/loggedin-profile")
+    public ResponseEntity<?> getLoggedInUserProfile(HttpServletRequest request) {
+        String jwtToken = authTokenFilter.parseJwt(request);
+        System.out.println("Extracted JWT token: " + jwtToken);
+
+        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+        System.out.println("Extracted userId: " + userId);
+
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
             return ResponseEntity.ok().body(user);
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
@@ -71,31 +89,31 @@ public class UserController {
     public ResponseEntity<?> updateUserProfile(HttpServletRequest request,
             @Valid @ModelAttribute User updatedUser,
             @RequestParam(value = "profile_picture", required = false) MultipartFile file) throws UserException {
-    
+
         String jwtToken = authTokenFilter.parseJwt(request);
         System.out.println("Extracted JWT token: " + jwtToken);
-    
+
         Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
         System.out.println("Extracted userId: " + userId);
-    
+
         Optional<User> existingUserOptional = userRepository.findById(userId);
         User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
-    
+
         System.out.println("User ID from database: " + user.getId());
         System.out.println("Updated User ID: " + updatedUser.getId());
-    
+
         if (!user.getId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new MessageResponse("You are not authorized to update this profile"));
         }
-    
+
         Optional<User> existingUser = userRepository.findById(userId);
         if (existingUser.isPresent()) {
             User userExisting = existingUser.get();
-    
+
             String existingUsername = userExisting.getUsername();
             String existingPassword = userExisting.getPassword();
-    
+
             // Update only the fields that are not null in the request body
             if (updatedUser.getName() != null) {
                 userExisting.setName(updatedUser.getName());
@@ -112,7 +130,7 @@ public class UserController {
             if (updatedUser.getGender() != null) {
                 userExisting.setGender(updatedUser.getGender());
             }
-    
+
             if (file != null && !file.isEmpty()) {
                 System.out.println("Received file: " + file.getOriginalFilename());
                 storageService.store(file);
@@ -121,53 +139,51 @@ public class UserController {
             } else if (updatedUser.getImage() != null) {
                 userExisting.setImage(updatedUser.getImage());
             }
-    
+
             // Set back the existing username and password
             userExisting.setUsername(existingUsername);
             userExisting.setPassword(existingPassword);
-    
+
             User savedUser = userRepository.save(userExisting);
-    
+
             return ResponseEntity.ok().body(new MessageResponse("User profile updated successfully", savedUser));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
         }
     }
-    
-    
 
     @PreAuthorize("hasAuthority('DOCTOR')")
     @PutMapping("/profile/doctor")
     @Transactional
     public ResponseEntity<?> updateDoctorProfile(HttpServletRequest request,
-                                                                  @RequestParam("specialty") String specialty,
-                                                                  @RequestParam("degree") String degree,
-                                                                  @RequestParam(value = "attachment", required = false) MultipartFile file) throws UserException {
-    
+            @RequestParam("specialty") String specialty,
+            @RequestParam("degree") String degree,
+            @RequestParam(value = "attachment", required = false) MultipartFile file) throws UserException {
+
         try {
             String jwtToken = authTokenFilter.parseJwt(request);
             System.out.println("Extracted JWT token: " + jwtToken);
-    
+
             // Parse the JWT token to extract the userId
             Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
             System.out.println("Extracted userId: " + userId);
-    
+
             // Use the extracted userId to get the User object
             Optional<User> existingUserOptional = userRepository.findById(userId);
             User userToUpdate = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
-    
+
             if (!userToUpdate.getRole().equals(ERole.DOCTOR)) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Collections.singletonMap("message", "Access is denied"));
             }
-    
+
             if (specialty != null) {
                 userToUpdate.setSpecialty(specialty);
             }
             if (degree != null) {
                 userToUpdate.setDegree(degree);
             }
-    
+
             if (file != null && !file.isEmpty()) {
                 System.out.println("Received file: " + file.getOriginalFilename());
                 storageService.store(file);
@@ -176,72 +192,82 @@ public class UserController {
             } else if (userToUpdate.getAttachment() != null) {
                 userToUpdate.setAttachment(userToUpdate.getAttachment());
             }
-    
+
             User savedUser = userRepository.save(userToUpdate);
-    
+
             return ResponseEntity.ok().body(new MessageResponse("Doctor profile updated successfully", savedUser));
-    
+
         } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Collections.singletonMap("message", "Unauthorized: Full authentication is required to access this resource"));
+                    .body(Collections.singletonMap("message",
+                            "Unauthorized: Full authentication is required to access this resource"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Collections.singletonMap("message", "Access is denied"));
         }
     }
-        
-@PutMapping("/profile/password")
-@Transactional
-public ResponseEntity<MessageResponse> updateUserPassword(HttpServletRequest request,
-                                                           @RequestBody Map<String, String> passwordMap) throws UserException {
-    try {
-        // Get the authenticated user
-        String jwtToken = authTokenFilter.parseJwt(request);
-        System.out.println("Extracted JWT token: " + jwtToken);
 
-        // Parse the JWT token to extract the userId
-        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-        System.out.println("Extracted userId: " + userId);
+    @PutMapping("/profile/password")
+    @Transactional
+    public ResponseEntity<MessageResponse> updateUserPassword(HttpServletRequest request,
+            @RequestBody Map<String, String> passwordMap) throws UserException {
+        try {
+            // Get the authenticated user
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
 
-        // Use the extracted userId to get the User object
-        Optional<User> existingUserOptional = userRepository.findById(userId);
-        User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
 
-        // Extract the password from the map
-        String newPassword = passwordMap.get("password");
+            // Use the extracted userId to get the User object
+            Optional<User> existingUserOptional = userRepository.findById(userId);
+            User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
 
-        // Check if the authenticated user ID matches the requested user ID
-        if (!user.getId().equals(userId)) {
+            // Extract the password from the map
+            String newPassword = passwordMap.get("password");
+
+            // Check if the authenticated user ID matches the requested user ID
+            if (!user.getId().equals(userId)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new MessageResponse("You are not authorized to update this password"));
+            }
+
+            // Check if the new password is empty or shorter than 8 characters
+            if (newPassword == null || newPassword.isEmpty() || newPassword.length() < 8) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new MessageResponse("Password should have at least 8 characters"));
+            }
+
+            if (encoder.matches(newPassword, user.getPassword())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new MessageResponse("Password isn't updated"));
+            }
+
+            // Hash the new password
+            String hashedPassword = encoder.encode(newPassword);
+
+            // Update the user's password
+            user.setPassword(hashedPassword);
+            userRepository.save(user);
+
+            return ResponseEntity.ok().body(new MessageResponse("Password updated successfully"));
+
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new MessageResponse("You are not authorized to update this password"));
+                    .body(new MessageResponse("Unauthorized: Full authentication is required to access this resource"));
         }
 
-        // Check if the new password is empty or shorter than 8 characters
-        if (newPassword == null || newPassword.isEmpty() || newPassword.length() < 8) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new MessageResponse("Password should have at least 8 characters"));
-        }
-
-        if (encoder.matches(newPassword, user.getPassword())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new MessageResponse("Password isn't updated"));
-        }
-
-        // Hash the new password
-        String hashedPassword = encoder.encode(newPassword);
-
-        // Update the user's password
-        user.setPassword(hashedPassword);
-        userRepository.save(user);
-
-        return ResponseEntity.ok().body(new MessageResponse("Password updated successfully"));
-
-    } catch (Exception e) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new MessageResponse("Unauthorized: Full authentication is required to access this resource"));
     }
-    
-}
 
+    @GetMapping("/search")
+    public ResponseEntity<List<User>> searchUserHandler(@RequestParam("q") String query) throws UserException {
+        List<User> users = userRepository.findByQuery(query);
+
+        if (users.size() == 0)
+            throw new UserException("User is not found.");
+
+        return new ResponseEntity<List<User>>(users, HttpStatus.OK);
+    }
 
 }

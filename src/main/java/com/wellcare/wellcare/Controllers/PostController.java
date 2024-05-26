@@ -236,6 +236,12 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
 
     }
 
+    @GetMapping("/{userId}/count")
+    public ResponseEntity<Long> getPostCountByUserId(@PathVariable Long userId) {
+        Long postCount = postRepository.countPostsByUserId(userId);
+        return new ResponseEntity<>(postCount, HttpStatus.OK);
+    }
+
     @Transactional
     @DeleteMapping("/{postId}")
     public ResponseEntity<MessageResponse> deletePost(@PathVariable Long postId) {
