@@ -80,7 +80,10 @@ public class User {
             "email", "mobile", "bio", "gender", "image", "role",
             "savedPost" })
     private List<User> friends = new ArrayList<>();
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JsonIgnore
     private List<Story> stories = new ArrayList<>();
 
     public void addFriend(User friend) {

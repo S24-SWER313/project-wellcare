@@ -47,7 +47,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     public List<User> findByQuery(@Param("query") String query);
 
     // Add methods for managing stories
-    List<Story> findTop20ByUserOrderByCreatedAtDesc(User user);
-
-    void deleteByUserAndCreatedAtBefore(User user, LocalDateTime createdAt);
+    
 }

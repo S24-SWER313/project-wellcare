@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.wellcare.wellcare.Models.Story;
 import com.wellcare.wellcare.Models.User;
+import com.wellcare.wellcare.Repositories.StoryRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 
 // Import necessary dependenci
@@ -26,6 +28,9 @@ public class StoryController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private StoryRepository storyRepository;
+
     // Endpoint to get stories for a user
     @GetMapping("/user/{username}")
     //
@@ -34,19 +39,19 @@ public class StoryController {
         Optional<User> userOptional = userRepository.findByUsername(username);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            List<Story> stories = userRepository.findTop20ByUserOrderByCreatedAtDesc(user);
+            List<Story> stories = storyRepository.findTop20ByUserOrderByCreatedAtDesc(user);
             return ResponseEntity.ok().body(stories);
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         }
     }
 
-    // Endpoint to delete expired stories
+    @Transactional
     @DeleteMapping("/expire")
     public ResponseEntity<?> deleteExpiredStories() {
         List<User> users = userRepository.findAll();
         for (User user : users) {
-            userRepository.deleteByUserAndCreatedAtBefore(user, LocalDateTime.now().minusHours(24)); // Example: Expire
+            storyRepository.deleteByUserAndCreatedAtBefore(user, LocalDateTime.now().minusHours(24)); // Example: Expire
                                                                                                      // stories after 24
                                                                                                      // hours
         }
