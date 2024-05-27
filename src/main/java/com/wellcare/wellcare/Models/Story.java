@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
 public class Story {
 
     @Id
@@ -24,25 +25,14 @@ public class Story {
 
     private String image;
     private String caption;
-
     private LocalDateTime createdAt;
+    private LocalDateTime expiresAt;
 
-    private LocalDateTime expiresAt; // You can set the duration of the story
-   
-   
     @ManyToOne
-     @JsonIgnoreProperties({ "password", "name", "attachment", "degree", "specialty", "friends", "friendsNumber",
-            "email", "mobile", "bio", "gender", "image", "role",
-            "savedPost, stories, postsCount" })
+    @JsonIgnoreProperties({
+            "password", "attachment", "degree", "specialty", "friends", "friendsNumber",
+            "email", "mobile", "bio", "gender", "role",
+            "savedPost", "stories", "postsCount"
+    })
     private User user;
-
-    public Story(Long id, String image, String caption, LocalDateTime createdAt, LocalDateTime expiresAt, User user) {
-        this.id = id;
-        this.image = image;
-        this.caption = caption;
-        this.createdAt = createdAt;
-        this.expiresAt = expiresAt;
-        this.user = user;
-    }
-
 }
