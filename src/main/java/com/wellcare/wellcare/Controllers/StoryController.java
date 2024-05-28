@@ -1,9 +1,5 @@
 package com.wellcare.wellcare.Controllers;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +23,7 @@ import com.wellcare.wellcare.Repositories.StoryRepository;
 import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
+import com.wellcare.wellcare.Storage.StorageService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -44,6 +41,9 @@ public class StoryController {
 
     @Autowired
     private StoryRepository storyRepository;
+
+    @Autowired
+    StorageService storageService;
 
     // Endpoint to get stories for a user
     @GetMapping("/user/{username}")
@@ -122,12 +122,16 @@ public class StoryController {
                 User user = userOptional.get();
 
                 // Save the image to a location and get the URL/path
-                String imageUrl = saveImage(imageFile);
+                System.out.println("Received file: " + imageFile.getOriginalFilename());
+                storageService.store(imageFile);
+                String filename = imageFile.getOriginalFilename();
+                String url = "http://localhost:8080/files/" + filename;
+                // String imageUrl = saveImage(imageFile);
 
                 Story story = new Story();
                 story.setUser(user);
                 story.setCaption(caption);
-                story.setImage(imageUrl);
+                story.setImage(url);
                 story.setCreatedAt(LocalDateTime.now());
                 story.setExpiresAt(LocalDateTime.now().plusHours(24)); // Set expiry to 24 hours from creation
 
@@ -137,33 +141,37 @@ public class StoryController {
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to save image");
         }
     }
 
-    private String saveImage(MultipartFile imageFile) throws IOException {
-        // Define the directory where you want to save the uploaded images
-        String uploadDir = "upload-dir/";
+    // private String saveImage(MultipartFile imageFile) throws IOException {
+    // // Define the directory where you want to save the uploaded images
+    // String uploadDir = "upload-dir/";
 
-        // Generate a unique filename for the image
-        String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+    // // Generate a unique filename for the image
+    // // String fileName = System.currentTimeMillis() + "_" +
+    // imageFile.getOriginalFilename();
 
-        // Create the path where the image will be saved
-        Path filePath = Paths.get(uploadDir + fileName);
+    // // Create the path where the image will be saved
+    // // Path filePath = Paths.get(uploadDir + fileName);
+    // System.out.println("Received file: " + imageFile.getOriginalFilename());
+    // storageService.store(imageFile);
+    // String filename = imageFile.getOriginalFilename();
+    // String url = "http://localhost:8080/files/" + imageFile;
+    // try {
+    // // Save the image file to the specified path
+    // Files.write(filePath, imageFile.getBytes());
+    // } catch (IOException e) {
+    // e.printStackTrace();
+    // throw new IOException("Failed to save image");
+    // }
 
-        try {
-            // Save the image file to the specified path
-            Files.write(filePath, imageFile.getBytes());
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new IOException("Failed to save image");
-        }
-
-        // Return the URL or file path of the saved image
-        return filePath.toString();
-    }
+    // // Return the URL or file path of the saved image
+    // return filePath.toString(); // This will return the file path, not URL
+    // }
 
     // Endpoint to delete a specific story by its ID
     @DeleteMapping("/{id}")
