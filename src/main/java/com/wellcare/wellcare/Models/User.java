@@ -81,7 +81,6 @@ public class User {
             "savedPost" })
     private List<User> friends = new ArrayList<>();
 
-
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JsonIgnore
     private List<Story> stories = new ArrayList<>();
