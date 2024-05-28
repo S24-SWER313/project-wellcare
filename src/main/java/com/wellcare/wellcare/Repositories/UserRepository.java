@@ -1,5 +1,6 @@
 package com.wellcare.wellcare.Repositories;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import com.wellcare.wellcare.Models.ERole;
 import com.wellcare.wellcare.Models.Post;
+import com.wellcare.wellcare.Models.Story;
 import com.wellcare.wellcare.Models.User;
 
 @Repository
@@ -43,4 +45,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT DISTINCT u FROM User u WHERE u.username LIKE %:query% OR u.email LIKE %:query%")
     public List<User> findByQuery(@Param("query") String query);
+
+    // Add methods for managing stories
+    
 }
