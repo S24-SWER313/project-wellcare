@@ -70,6 +70,10 @@ public class User {
     @Min(0)
     private Integer friendsNumber = 0;
 
+    @NotNull
+    @Min(0)
+    private Integer postsCount = 0;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_friends", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "friend_id"))
     @JsonIgnoreProperties({ "password", "name", "attachment", "degree", "specialty", "friends", "friendsNumber",

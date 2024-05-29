@@ -41,7 +41,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findBySavedPost(Post post);
 
-    
     @Query("SELECT DISTINCT u FROM User u WHERE u.username LIKE %:query% OR u.email LIKE %:query%")
     public List<User> findByQuery(@Param("query") String query);
+
+    // Add methods for managing stories
+
 }

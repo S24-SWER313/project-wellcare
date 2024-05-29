@@ -137,6 +137,9 @@ public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
         post.setAttachment(attachmentUrls); // Set attachments to the post
 
         Post createdPost = postRepository.save(post);
+        
+        user.setPostsCount(user.getPostsCount() + 1);
+        userRepository.save(user);
 
         EntityModel<Post> postModel = postModelAssembler.toModel(createdPost);
 

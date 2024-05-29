@@ -69,7 +69,7 @@ public class Post {
     @NotNull
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = true)
-    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
+    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender",
             "role",
             "attachment", "friends", "friendsNumber", "savedPost" })
     private User user;

@@ -24,3 +24,4 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     List<Story> findAllByExpiresAtBefore(LocalDateTime expiresAt);
 
 }
+
