@@ -149,17 +149,16 @@ public class AuthControllerTest {
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
 
         mockMvc.perform(MockMvcRequestBuilders.multipart("/api/auth/signup")
-        .file(file)
-        .param("username", request.getUsername())
-        .param("email", request.getEmail())
-        .param("password", request.getPassword())
-        .param("name", request.getName())
-        .param("role", request.getRole()))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Error: Doctor specialty and degree are required!"));
+                .file(file)
+                .param("username", request.getUsername())
+                .param("email", request.getEmail())
+                .param("password", request.getPassword())
+                .param("name", request.getName())
+                .param("role", request.getRole()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Error: Doctor specialty and degree are required!"));
     }
 
-    
     @Test
     public void testRegisterMissingUsername() throws Exception {
         SignupRequest request = new SignupRequest();
@@ -170,37 +169,36 @@ public class AuthControllerTest {
         request.setRole(ERole.PATIENT.toString());
 
         mockMvc.perform(post("/api/auth/signup")
-        .contentType(MediaType.MULTIPART_FORM_DATA)
-        .param("username", request.getUsername())
-        .param("email", request.getEmail())
-        .param("password", request.getPassword())
-        .param("name", request.getName())
-        .param("role", request.getRole()))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Validation Error"));
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .param("username", request.getUsername())
+                .param("email", request.getEmail())
+                .param("password", request.getPassword())
+                .param("name", request.getName())
+                .param("role", request.getRole()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation Error"));
     }
 
     @Test
-public void testRegisterInvalidEmail() throws Exception {
-    SignupRequest request = new SignupRequest();
-    request.setUsername("test_user1");
-    request.setEmail("test@");
-    request.setPassword("password123");
-    request.setName("Test User");
-    request.setRole(ERole.DOCTOR.toString());
+    public void testRegisterInvalidEmail() throws Exception {
+        SignupRequest request = new SignupRequest();
+        request.setUsername("test_user1");
+        request.setEmail("test@");
+        request.setPassword("password123");
+        request.setName("Test User");
+        request.setRole(ERole.DOCTOR.toString());
 
-    mockMvc.perform(post("/api/auth/signup")
-            .contentType(MediaType.MULTIPART_FORM_DATA)
-            .param("username", request.getUsername())
-            .param("email", request.getEmail())
-            .param("password", request.getPassword())
-            .param("name", request.getName())
-            .param("role", request.getRole()))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("Validation Error"));
-}
+        mockMvc.perform(post("/api/auth/signup")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .param("username", request.getUsername())
+                .param("email", request.getEmail())
+                .param("password", request.getPassword())
+                .param("name", request.getName())
+                .param("role", request.getRole()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation Error"));
+    }
 
-   
     @Test
     public void testAuthenticateUserSuccess() throws Exception {
         LoginRequest loginRequest = new LoginRequest();
@@ -210,6 +208,7 @@ public void testRegisterInvalidEmail() throws Exception {
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 new UserDetailsImpl(
                         1L,
+                        "testUser",
                         "testUser",
                         "test@example.com",
                         encoder.encode("testPassword"),

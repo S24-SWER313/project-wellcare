@@ -112,12 +112,11 @@ public class StoryController {
         return ResponseEntity.ok().body("Expired stories deleted successfully");
     }
 
-    // Endpoint to create a new story
-    @PostMapping("/user/{username}")
-    public ResponseEntity<?> createStory(HttpServletRequest request, @PathVariable String username,
+    @PostMapping("/user/{id}")
+    public ResponseEntity<?> createStory(HttpServletRequest request, @PathVariable long id,
             @RequestPart("caption") String caption, @RequestPart("image") MultipartFile imageFile) {
         try {
-            Optional<User> userOptional = userRepository.findByUsername(username);
+            Optional<User> userOptional = userRepository.findById(id);
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
 
@@ -126,7 +125,6 @@ public class StoryController {
                 storageService.store(imageFile);
                 String filename = imageFile.getOriginalFilename();
                 String url = "http://localhost:8080/files/" + filename;
-                // String imageUrl = saveImage(imageFile);
 
                 Story story = new Story();
                 story.setUser(user);
@@ -137,7 +135,8 @@ public class StoryController {
 
                 storyRepository.save(story);
 
-                return ResponseEntity.status(HttpStatus.CREATED).body("Story created successfully");
+                // Return the created story details
+                return ResponseEntity.status(HttpStatus.CREATED).body(story);
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
             }
@@ -185,4 +184,3 @@ public class StoryController {
         }
     }
 }
-
