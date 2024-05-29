@@ -183,4 +183,6 @@ public class StoryController {
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Story not found");
         }
-    }}
+    }
+}
+
