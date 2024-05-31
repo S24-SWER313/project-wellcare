@@ -264,9 +264,6 @@ public class UserController {
     public ResponseEntity<List<User>> searchUserHandler(@RequestParam("q") String query) throws UserException {
         List<User> users = userRepository.findByQuery(query);
 
-        if (users.size() == 0)
-            throw new UserException("User is not found.");
-
         return new ResponseEntity<List<User>>(users, HttpStatus.OK);
     }
 

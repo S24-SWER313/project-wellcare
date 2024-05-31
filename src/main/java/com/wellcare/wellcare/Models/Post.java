@@ -85,6 +85,8 @@ public class Post {
     @JsonIgnoreProperties({ "user", "commentLikes", "createdAt" })
     private List<Comment> comments = new ArrayList<>();
 
+    boolean isSaved;
+
 
     public Post() {
         this.createdAt = LocalDateTime.now();
