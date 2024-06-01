@@ -85,72 +85,75 @@ public class UserController {
     }
 
     @PutMapping("/profile")
-    @Transactional
-    public ResponseEntity<?> updateUserProfile(HttpServletRequest request,
-            @Valid @ModelAttribute User updatedUser,
-            @RequestParam(value = "profile_picture", required = false) MultipartFile file) throws UserException {
+@Transactional
+public ResponseEntity<?> updateUserProfile(HttpServletRequest request,
+        @Valid @ModelAttribute User updatedUser,
+        @RequestParam(value = "profile_picture", required = false) MultipartFile file,
+        @RequestParam(value = "remove_profile_picture", required = false) Boolean removeProfilePicture) throws UserException {
 
-        String jwtToken = authTokenFilter.parseJwt(request);
-        System.out.println("Extracted JWT token: " + jwtToken);
+    String jwtToken = authTokenFilter.parseJwt(request);
+    System.out.println("Extracted JWT token: " + jwtToken);
 
-        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-        System.out.println("Extracted userId: " + userId);
+    Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+    System.out.println("Extracted userId: " + userId);
 
-        Optional<User> existingUserOptional = userRepository.findById(userId);
-        User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
+    Optional<User> existingUserOptional = userRepository.findById(userId);
+    User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
 
-        System.out.println("User ID from database: " + user.getId());
-        System.out.println("Updated User ID: " + updatedUser.getId());
+    System.out.println("User ID from database: " + user.getId());
+    System.out.println("Updated User ID: " + updatedUser.getId());
 
-        if (!user.getId().equals(userId)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new MessageResponse("You are not authorized to update this profile"));
-        }
-
-        Optional<User> existingUser = userRepository.findById(userId);
-        if (existingUser.isPresent()) {
-            User userExisting = existingUser.get();
-
-            String existingUsername = userExisting.getUsername();
-            String existingPassword = userExisting.getPassword();
-
-            // Update only the fields that are not null in the request body
-            if (updatedUser.getName() != null) {
-                userExisting.setName(updatedUser.getName());
-            }
-            if (updatedUser.getEmail() != null) {
-                userExisting.setEmail(updatedUser.getEmail());
-            }
-            if (updatedUser.getMobile() != null) {
-                userExisting.setMobile(updatedUser.getMobile());
-            }
-            if (updatedUser.getBio() != null) {
-                userExisting.setBio(updatedUser.getBio());
-            }
-            if (updatedUser.getGender() != null) {
-                userExisting.setGender(updatedUser.getGender());
-            }
-
-            if (file != null && !file.isEmpty()) {
-                System.out.println("Received file: " + file.getOriginalFilename());
-                storageService.store(file);
-                String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
-                userExisting.setImage(imageUrl);
-            } else if (updatedUser.getImage() != null) {
-                userExisting.setImage(updatedUser.getImage());
-            }
-
-            // Set back the existing username and password
-            userExisting.setUsername(existingUsername);
-            userExisting.setPassword(existingPassword);
-
-            User savedUser = userRepository.save(userExisting);
-
-            return ResponseEntity.ok().body(new MessageResponse("User profile updated successfully", savedUser));
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
-        }
+    if (!user.getId().equals(userId)) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new MessageResponse("You are not authorized to update this profile"));
     }
+
+    Optional<User> existingUser = userRepository.findById(userId);
+    if (existingUser.isPresent()) {
+        User userExisting = existingUser.get();
+
+        String existingUsername = userExisting.getUsername();
+        String existingPassword = userExisting.getPassword();
+
+        // Update only the fields that are not null in the request body
+        if (updatedUser.getName() != null) {
+            userExisting.setName(updatedUser.getName());
+        }
+        if (updatedUser.getEmail() != null) {
+            userExisting.setEmail(updatedUser.getEmail());
+        }
+        if (updatedUser.getMobile() != null) {
+            userExisting.setMobile(updatedUser.getMobile());
+        }
+        if (updatedUser.getBio() != null) {
+            userExisting.setBio(updatedUser.getBio());
+        }
+        if (updatedUser.getGender() != null) {
+            userExisting.setGender(updatedUser.getGender());
+        }
+
+        if (removeProfilePicture != null && removeProfilePicture) {
+            userExisting.setImage(null); // or set to a default image URL if you have one
+        } else if (file != null && !file.isEmpty()) {
+            System.out.println("Received file: " + file.getOriginalFilename());
+            storageService.store(file);
+            String imageUrl = "http://localhost:8080/files/" + file.getOriginalFilename();
+            userExisting.setImage(imageUrl);
+        } else if (updatedUser.getImage() != null) {
+            userExisting.setImage(updatedUser.getImage());
+        }
+
+        // Set back the existing username and password
+        userExisting.setUsername(existingUsername);
+        userExisting.setPassword(existingPassword);
+
+        User savedUser = userRepository.save(userExisting);
+
+        return ResponseEntity.ok().body(new MessageResponse("User profile updated successfully", savedUser));
+    } else {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("User not found"));
+    }
+}
 
     @PreAuthorize("hasAuthority('DOCTOR')")
     @PutMapping("/profile/doctor")

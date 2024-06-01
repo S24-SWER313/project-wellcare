@@ -18,6 +18,14 @@ public class JwtResponse {
         this.role = role;
     }
 
+    public JwtResponse(String accessToken, Long id, String username, String name, String email) {
+        this.token = accessToken;
+        this.id = id;
+        this.username = username;
+        this.name = name;
+        this.email = email;
+    }
+
     public String getAccessToken() {
         return token;
     }
