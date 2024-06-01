@@ -1,13 +1,7 @@
 package com.wellcare.wellcare.Controllers;
 
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -24,7 +18,6 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -38,7 +31,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.wellcare.wellcare.Assemblers.PostModelAssembler;
 import com.wellcare.wellcare.Exceptions.PostException;
@@ -54,7 +46,6 @@ import com.wellcare.wellcare.Repositories.UserRepository;
 import com.wellcare.wellcare.Security.jwt.AuthTokenFilter;
 import com.wellcare.wellcare.Security.jwt.JwtUtils;
 import com.wellcare.wellcare.Security.services.UserDetailsImpl;
-import com.wellcare.wellcare.Storage.StorageException;
 import com.wellcare.wellcare.Storage.StorageService;
 import com.wellcare.wellcare.payload.response.MessageResponse;
 
@@ -62,7 +53,6 @@ import io.jsonwebtoken.JwtException;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-
 
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
@@ -92,141 +82,136 @@ public class PostController {
     @Autowired
     private EntityManager entityManager;
 
-   
+    @Transactional
+    @PostMapping("/new-post")
+    public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
+            @Valid @ModelAttribute Post post,
+            @RequestParam(value = "file", required = false) MultipartFile[] files,
+            Authentication authentication) throws UserException {
+        try {
 
-@Transactional
-@PostMapping("/new-post")
-public ResponseEntity<EntityModel<Post>> createPost(HttpServletRequest request,
-        @Valid @ModelAttribute Post post,
-        @RequestParam(value = "file", required = false) MultipartFile[] files,
-        Authentication authentication) throws UserException {
-    try {
-        
-        if (authentication == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        
-        // Extract the JWT token from the request
-        String jwtToken = authTokenFilter.parseJwt(request);
-        System.out.println("Extracted JWT token: " + jwtToken);
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
 
-        // Parse the JWT token to extract the userId
-        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-        System.out.println("Extracted userId: " + userId);
+            // Extract the JWT token from the request
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
 
-        // Use the extracted userId to get the User object
-        Optional<User> existingUserOptional = userRepository.findById(userId);
-        User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
 
-        post.setUser(user); // Set the User for the Post
-        post.setCreatedAt(LocalDateTime.now());
+            // Use the extracted userId to get the User object
+            Optional<User> existingUserOptional = userRepository.findById(userId);
+            User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
 
-        List<String> attachmentUrls = new ArrayList<>();
-      
-        
-        if (files != null) {
-            for (MultipartFile file : files) {
-                System.out.println("Received file: " + file.getOriginalFilename());
-                String fileName = storageService.store(file); 
-                String url = "http://localhost:8080/files/" + fileName;
-                attachmentUrls.add(url);
+            post.setUser(user); // Set the User for the Post
+            post.setCreatedAt(LocalDateTime.now());
+
+            List<String> attachmentUrls = new ArrayList<>();
+
+            if (files != null) {
+                for (MultipartFile file : files) {
+                    System.out.println("Received file: " + file.getOriginalFilename());
+                    String fileName = storageService.store(file);
+                    String url = "http://localhost:8080/files/" + fileName;
+                    attachmentUrls.add(url);
+                }
+            }
+
+            post.setAttachment(attachmentUrls); // Set attachments to the post
+
+            Post createdPost = postRepository.save(post);
+
+            user.setPostsCount(user.getPostsCount() + 1);
+            userRepository.save(user);
+
+            EntityModel<Post> postModel = postModelAssembler.toModel(createdPost);
+
+            // Pass the userId to the linkTo method
+            return new ResponseEntity<>(postModel, HttpStatus.CREATED);
+        } catch (Exception ex) {
+            // Log the complete exception details for better analysis
+            logger.error("Error processing JWT token", ex);
+            if (ex instanceof JwtException) {
+                throw new UserException("Invalid JWT token: " + ex.getMessage());
+            } else {
+                throw new UserException("Error processing JWT token: " + ex.getMessage());
             }
         }
-
-      
-        post.setAttachment(attachmentUrls); // Set attachments to the post
-
-        Post createdPost = postRepository.save(post);
-        
-        user.setPostsCount(user.getPostsCount() + 1);
-        userRepository.save(user);
-
-        EntityModel<Post> postModel = postModelAssembler.toModel(createdPost);
-
-        // Pass the userId to the linkTo method
-        return new ResponseEntity<>(postModel, HttpStatus.CREATED);
-    } catch (Exception ex) {
-        // Log the complete exception details for better analysis
-        logger.error("Error processing JWT token", ex);
-        if (ex instanceof JwtException) {
-            throw new UserException("Invalid JWT token: " + ex.getMessage());
-        } else {
-            throw new UserException("Error processing JWT token: " + ex.getMessage());
-        }
     }
-}
 
-
-@Transactional
-@PutMapping("/{postId}")
-public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
-        @ModelAttribute Post updatedPost,
-        @PathVariable Long postId,
-        @RequestParam(value = "file", required = false) MultipartFile[] files,
-        Authentication authentication) throws PostException, UserException {
-    try {
-        if (authentication == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        // Extract the JWT token from the request
-        String jwtToken = authTokenFilter.parseJwt(request);
-        System.out.println("Extracted JWT token: " + jwtToken);
-
-        // Parse the JWT token to extract the userId
-        Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-        System.out.println("Extracted userId: " + userId);
-
-        // Use the extracted userId to get the User object
-        Optional<User> existingUserOptional = userRepository.findById(userId);
-        User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
-
-        Optional<Post> existingPostOptional = postRepository.findById(postId);
-        if (existingPostOptional.isEmpty()) {
-            throw new ResourceNotFoundException("Post", postId);
-        }
-        Post existingPost = existingPostOptional.get();
-
-        if (!existingPost.getUser().getId().equals(user.getId())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        entityManager.detach(existingPost);
-
-        // Update only the fields that are not null in the updatedPost
-        if (updatedPost.getContent() != null) {
-            existingPost.setContent(updatedPost.getContent());
-        }
-        if (updatedPost.getLocation() != null) {
-            existingPost.setLocation(updatedPost.getLocation());
-        }
-
-        // Keep existing attachments if files are not updated
-        List<String> existingAttachments = existingPost.getAttachment() != null ? existingPost.getAttachment() : new ArrayList<>();
-
-        List<String> attachmentUrls = new ArrayList<>(existingAttachments);
-
-        if (files != null && files.length > 0) {
-            for (MultipartFile file : files) {
-                storageService.store(file);
-                String filename = file.getOriginalFilename();
-                String url = "http://localhost:8080/files/" + filename;
-                attachmentUrls.add(url);
+    @Transactional
+    @PutMapping("/{postId}")
+    public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
+            @ModelAttribute Post updatedPost,
+            @PathVariable Long postId,
+            @RequestParam(value = "file", required = false) MultipartFile[] files,
+            Authentication authentication) throws PostException, UserException {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
+
+            // Extract the JWT token from the request
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
+
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
+
+            // Use the extracted userId to get the User object
+            Optional<User> existingUserOptional = userRepository.findById(userId);
+            User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
+
+            Optional<Post> existingPostOptional = postRepository.findById(postId);
+            if (existingPostOptional.isEmpty()) {
+                throw new ResourceNotFoundException("Post", postId);
+            }
+            Post existingPost = existingPostOptional.get();
+
+            if (!existingPost.getUser().getId().equals(user.getId())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            entityManager.detach(existingPost);
+
+            // Update only the fields that are not null in the updatedPost
+            if (updatedPost.getContent() != null) {
+                existingPost.setContent(updatedPost.getContent());
+            }
+            if (updatedPost.getLocation() != null) {
+                existingPost.setLocation(updatedPost.getLocation());
+            }
+
+            // Keep existing attachments if files are not updated
+            List<String> existingAttachments = existingPost.getAttachment() != null ? existingPost.getAttachment()
+                    : new ArrayList<>();
+
+            List<String> attachmentUrls = new ArrayList<>(existingAttachments);
+
+            if (files != null && files.length > 0) {
+                for (MultipartFile file : files) {
+                    storageService.store(file);
+                    String filename = file.getOriginalFilename();
+                    String url = "http://localhost:8080/files/" + filename;
+                    attachmentUrls.add(url);
+                }
+            }
+
+            existingPost.setAttachment(attachmentUrls); // Set attachments to the existing post
+
+            Post savedPost = postRepository.save(existingPost);
+
+            EntityModel<Post> postModel = postModelAssembler.toModel(savedPost);
+            return new ResponseEntity<>(postModel, HttpStatus.OK);
+        } catch (Exception ex) {
+            logger.error("Error updating post", ex);
+            throw new PostException("Error updating post: " + ex.getMessage());
         }
-
-        existingPost.setAttachment(attachmentUrls); // Set attachments to the existing post
-
-        Post savedPost = postRepository.save(existingPost);
-
-        EntityModel<Post> postModel = postModelAssembler.toModel(savedPost);
-        return new ResponseEntity<>(postModel, HttpStatus.OK);
-    } catch (Exception ex) {
-        logger.error("Error updating post", ex);
-        throw new PostException("Error updating post: " + ex.getMessage());
     }
-}
-
 
     @GetMapping("/{userId}")
     public ResponseEntity<PagedModel<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId,
@@ -254,15 +239,15 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
                 throw new ResourceNotFoundException("Post", postId);
             }
             Post post = optionalPost.get();
-            
+
             List<User> users = userRepository.findBySavedPost(post);
             for (User user : users) {
-            user.getSavedPost().remove(post);
+                user.getSavedPost().remove(post);
             }
 
-            List<Comment> postComments = post.getComments();            
+            List<Comment> postComments = post.getComments();
             commentRepository.deleteAll(postComments);
-            
+
             postRepository.delete(post);
             return ResponseEntity.ok(new MessageResponse("Post deleted successfully"));
         } catch (ResourceNotFoundException ex) {
@@ -280,35 +265,35 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
             @RequestParam(required = false) Boolean friendsOnly,
             Pageable pageable,
             @AuthenticationPrincipal UserDetailsImpl userDetails) throws UserException {
-    
+
         Page<Post> postsPage;
-    
+
         if (role != null && Boolean.TRUE.equals(friendsOnly)) {
             // Filter posts based on role and following
             if (userDetails != null && userDetails.getId() != null) {
                 List<User> friendsUsers = userRepository.findById(userDetails.getId())
                         .orElseThrow(() -> new UserException("User not found")).getFriends();
-    
+
                 List<User> usersByRole = userRepository.findAllUsersByRole(role);
                 if (usersByRole.isEmpty()) {
                     // Return empty response if no users found for the given role
                     return ResponseEntity.ok(PagedModel.empty());
                 }
-    
+
                 List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
                 postsPage = postRepository.findAllPostsByUserIds(userIds, pageable);
-    
+
                 if (postsPage.isEmpty()) {
                     // Return empty response if no posts found for the given role
                     return ResponseEntity.ok(PagedModel.empty());
                 }
-    
+
                 List<Post> roleBasedPosts = postsPage.getContent().stream()
                         .filter(post -> friendsUsers.contains(post.getUser()))
                         .collect(Collectors.toList());
-    
+
                 postsPage = new PageImpl<>(roleBasedPosts, pageable, roleBasedPosts.size());
-    
+
             } else {
                 throw new UserException("User details not found");
             }
@@ -319,10 +304,10 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
                 // Return empty response if no users found for the given role
                 return ResponseEntity.ok(PagedModel.empty());
             }
-    
+
             List<Long> userIds = usersByRole.stream().map(User::getId).collect(Collectors.toList());
             postsPage = postRepository.findAllPostsByUserIds(userIds, pageable);
-    
+
             if (postsPage.isEmpty()) {
                 // Return empty response if no posts found for the given role
                 return ResponseEntity.ok(PagedModel.empty());
@@ -341,9 +326,9 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
             // Fetch all posts
             postsPage = postRepository.findAllWithLikesAndComments(pageable);
         }
-    
+
         PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(postsPage, postModelAssembler);
-    
+
         return ResponseEntity.ok(pagedModel);
     }
 
@@ -392,8 +377,49 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
 
     @Transactional
     @PutMapping("/save-switcher/{postId}")
-    public ResponseEntity<MessageResponse> toggleSavePost(HttpServletRequest request, @PathVariable Long postId)
+    public ResponseEntity<EntityModel<Post>> toggleSavePost(HttpServletRequest request, @PathVariable Long postId)
             throws UserException, PostException {
+
+        try {
+            // Extract the JWT token from the request
+            String jwtToken = authTokenFilter.parseJwt(request);
+            System.out.println("Extracted JWT token: " + jwtToken);
+
+            // Parse the JWT token to extract the userId
+            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            System.out.println("Extracted userId: " + userId);
+
+            Optional<User> optionalUser = userRepository.findById(userId);
+            User user = optionalUser.orElseThrow(() -> new UserException("User not found"));
+
+            Optional<Post> optionalPost = postRepository.findById(postId);
+            if (optionalPost.isEmpty()) {
+                throw new PostException("Post not found");
+            }
+
+            Post post = optionalPost.get();
+
+            boolean hasSaved = post.getSavedBy().contains(user);
+
+            if (hasSaved) {
+                post.getSavedBy().remove(user);
+            } else {
+                post.getSavedBy().add(user);
+            }
+
+            Post savedBy = postRepository.save(post);
+            EntityModel<Post> postModel = postModelAssembler.toModel(savedBy);
+            return new ResponseEntity<>(postModel, HttpStatus.OK);
+        } catch (Exception ex) {
+            logger.error("Error toggling save on post", ex);
+            throw new PostException("Error toggling save on post: " + ex.getMessage());
+        }
+    }
+
+    @Transactional
+    @GetMapping("/saved-posts")
+    public ResponseEntity<PagedModel<EntityModel<Post>>> getAllSavedPosts(HttpServletRequest request, Pageable pageable)
+            throws UserException {
         try {
             // Extract the JWT token from the request
             String jwtToken = authTokenFilter.parseJwt(request);
@@ -407,61 +433,15 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserException("User not found"));
 
-            // Retrieve the post entity or throw exception if not found
-            Post post = postRepository.findById(postId)
-                    .orElseThrow(() -> new PostException("Post not found"));
+            // Retrieve saved posts for the user with pagination
+            Page<Post> savedPostsPage = postRepository.findBySavedBy(user, pageable);
 
-            boolean isSavedPost = user.getSavedPost().contains(post);
-            String message;
-
-            if (!isSavedPost) {
-                user.getSavedPost().add(post);
-                message = "Post saved";
-            } else {
-                user.getSavedPost().remove(post);
-                message = "Post unsaved";
-            }
-
-            post.setSaved(true);
-
-            userRepository.save(user);
-
-            return ResponseEntity.ok(new MessageResponse(message, postModelAssembler.toModel(post)));
-
-        } catch (ResourceNotFoundException ex) {
-            ex.printStackTrace();
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @Transactional
-    @GetMapping("/saved-posts")
-    public ResponseEntity<PagedModel<EntityModel<Post>>> getAllSavedPosts(HttpServletRequest request, Pageable pageable)
-            throws UserException {
-        try {
-            String jwtToken = authTokenFilter.parseJwt(request);
-            System.out.println("Extracted JWT token: " + jwtToken);
-
-            // Parse the JWT token to extract the userId
-            Long userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
-            System.out.println("Extracted userId: " + userId);
-
-            // Retrieve the user entity or throw exception if not found
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new UserException("User not found"));
-
-            List<Post> savedPosts = user.getSavedPost()
-                    .stream()
-                    .sorted(Comparator.comparing(Post::getCreatedAt).reversed())
-                    .collect(Collectors.toList());
-
-            Page<Post> savedPostsPage = new PageImpl<>(savedPosts, pageable, savedPosts.size());
-
+            // Convert the page of saved posts to a paged model
             PagedModel<EntityModel<Post>> pagedModel = pagedResourcesAssembler.toModel(savedPostsPage,
                     postModelAssembler);
 
             return ResponseEntity.ok(pagedModel);
-        } catch (ResourceNotFoundException ex) {
+        } catch (UserException ex) {
             ex.printStackTrace();
             return ResponseEntity.notFound().build();
         }

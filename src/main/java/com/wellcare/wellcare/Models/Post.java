@@ -16,7 +16,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -81,12 +80,18 @@ public class Post {
             "attachment", "friends", "friendsNumber", "savedPost" })
     private Set<User> likes = new HashSet<>();
 
-    @OneToMany(fetch = FetchType.EAGER,  orphanRemoval = true)
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true)
     @JsonIgnoreProperties({ "user", "commentLikes", "createdAt" })
     private List<Comment> comments = new ArrayList<>();
 
     boolean isSaved;
 
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "post_saved", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
+    @JsonIgnoreProperties({ "name", "degree", "specialty", "password", "email", "mobile", "bio", "gender", "image",
+            "role",
+            "attachment", "friends", "friendsNumber", "savedPost", "postsCount" })
+    private Set<User> savedBy = new HashSet<>();
 
     public Post() {
         this.createdAt = LocalDateTime.now();
