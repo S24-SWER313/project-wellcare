@@ -28,14 +28,12 @@ public interface RelationshipRepository extends JpaRepository<Relationship, Long
         Relationship findRelationshipWithFriendWithStatus(@Param("userOneId") Long userOneId,
                         @Param("userTwoId") Long userTwoId, @Param("status") int status);
 
-        @Query("SELECT r FROM Relationship r " +
-                        "JOIN r.userOne u1 " +
-                        "JOIN r.userTwo u2 " +
-                        "WHERE (u1.username = :username1 AND u2.username = :username2) " +
-                        "OR (u1.username = :username2 AND u2.username = :username1)")
-        Relationship findRelationshipByUserOneUsernameAndUserTwoUsername(
-                        @Param("username1") String username1,
-                        @Param("username2") String username2);
+                        @Query(value = "" +
+                        "SELECT r FROM Relationship AS r " +
+                        "WHERE ((r.userOne.id = :id1 AND r.userTwo.id = :id2) " +
+                        "OR ( r.userTwo.id = :id1 AND r.userOne.id = :id2)) ")
+        Relationship findRelationshipByUserOneIdAndUserTwoId(@Param(value = "id1") Long userOneId,
+                        @Param(value = "id2") Long userTwoId);
 
         @Query("SELECT r FROM Relationship r WHERE (r.userOne.id = :id OR r.userTwo.id = :id) AND r.status NOT IN (0, 2)")
         List<Relationship> findAllNotCandidatesForFriends(Long id);

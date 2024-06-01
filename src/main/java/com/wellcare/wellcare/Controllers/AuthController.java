@@ -135,8 +135,9 @@ public class AuthController {
             String roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
                     .collect(Collectors.joining(","));
 
-            return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(),
-                    userDetails.getUsername(), userDetails.getEmail(), roles));
+                    return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(),
+                    userDetails.getUsername(), userDetails.getName(), userDetails.getEmail(), roles));
+                    
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.badRequest().body(new MessageResponse("Validation Error"));
         } catch (AuthenticationException e) {
