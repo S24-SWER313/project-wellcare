@@ -411,16 +411,18 @@ public ResponseEntity<EntityModel<Post>> updatePost(HttpServletRequest request,
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new PostException("Post not found"));
 
-            boolean isSaved = user.getSavedPost().contains(post);
+            boolean isSavedPost = user.getSavedPost().contains(post);
             String message;
 
-            if (!isSaved) {
+            if (!isSavedPost) {
                 user.getSavedPost().add(post);
                 message = "Post saved";
             } else {
                 user.getSavedPost().remove(post);
                 message = "Post unsaved";
             }
+
+            post.setSaved(true);
 
             userRepository.save(user);
 
