@@ -45,4 +45,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     Page<Post> findBySavedBy(User user, Pageable pageable);
 
+    @Query("SELECT DISTINCT p FROM Post p WHERE p.content LIKE %:query%")
+    public List<Post> findByContent(@Param("query") String query);
+
+
 }

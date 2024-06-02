@@ -211,7 +211,7 @@ public class PostController {
             logger.error("Error updating post", ex);
             throw new PostException("Error updating post: " + ex.getMessage());
         }
-    }
+    }    
 
     @GetMapping("/{userId}")
     public ResponseEntity<PagedModel<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId,
@@ -458,6 +458,13 @@ public class PostController {
         List<Comment> comments = post.getComments();
 
         return ResponseEntity.ok(comments);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<Post>> searchPostHandler(@RequestParam("q") String query) throws PostException {
+        List<Post> posts = postRepository.findByContent(query);
+
+        return new ResponseEntity<List<Post>>(posts, HttpStatus.OK);
     }
 
 }

@@ -62,7 +62,7 @@ public class RelationshipControllerTest {
         User friendUser = new User();
         friendUser.setId(2L);
         when(userRepository.findById(2L)).thenReturn(java.util.Optional.of(friendUser));
-        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(null);
+        when(relationshipRepository.findRelationshipByUserOneUsernameAndUserTwoUsername("testuser1", "testuser2")).thenReturn(null);
 
         // Data to be sent in the request body
         Map<String, String> friendData = new HashMap<>();
@@ -102,7 +102,7 @@ public class RelationshipControllerTest {
 
         Relationship existingRelationship = new Relationship();
         existingRelationship.setStatus(1);
-        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(loggedInUser.getId(), friendUser.getId())).thenReturn(existingRelationship);
+        when(relationshipRepository.findRelationshipByUserOneUsernameAndUserTwoUsername(loggedInUser.getUsername(), friendUser.getUsername())).thenReturn(existingRelationship);
 
         mockMvc.perform(put("/api/relationship/new-friend/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
@@ -154,7 +154,7 @@ public class RelationshipControllerTest {
 
         Relationship existingRelationship = new Relationship();
         existingRelationship.setStatus(0);
-        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(existingRelationship);
+        when(relationshipRepository.findRelationshipByUserOneUsernameAndUserTwoUsername("testuser1", "testuser2")).thenReturn(existingRelationship);
 
         mockMvc.perform(put("/api/relationship/new-friend/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
@@ -184,7 +184,7 @@ public class RelationshipControllerTest {
         relationship.setStatus(0);
         relationship.setTime(LocalDateTime.now());
 
-        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(relationship);
+        when(relationshipRepository.findRelationshipByUserOneUsernameAndUserTwoUsername("testuser1", "testuser2")).thenReturn(relationship);
 
         mockMvc.perform(delete("/api/relationship/friends/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
@@ -211,7 +211,7 @@ public class RelationshipControllerTest {
         relationship.setStatus(0);
         relationship.setTime(LocalDateTime.now());
 
-        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(relationship);
+        when(relationshipRepository.findRelationshipByUserOneUsernameAndUserTwoUsername("testuser1", "testuser2")).thenReturn(relationship);
 
         mockMvc.perform(put("/api/relationship/friend-accept/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
@@ -238,7 +238,7 @@ public class RelationshipControllerTest {
         relationship.setStatus(0);
         relationship.setTime(LocalDateTime.now());
 
-        when(relationshipRepository.findRelationshipByUserOneIdAndUserTwoId(1L, 2l)).thenReturn(relationship);
+        when(relationshipRepository.findRelationshipByUserOneUsernameAndUserTwoUsername("testuser1", "testuser2")).thenReturn(relationship);
 
         mockMvc.perform(put("/api/relationship/friend-request-cancel/{friendUserId}", 2L)
                 .contentType(MediaType.APPLICATION_JSON))
