@@ -13,7 +13,7 @@ import com.wellcare.wellcare.Models.User;
 public interface StoryRepository extends JpaRepository<Story, Long> {
 
     @Query("SELECT s FROM Story s WHERE s.user.id = :userId")
-    List<Story> findStoryByUserId(@Param("userId") Integer userId);
+    List<Story> findStoryByUserId(@Param("userId") Long userId);
 
     List<Story> findTop20ByUserOrderByCreatedAtDesc(User user);
 
@@ -22,6 +22,4 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     List<Story> findAllByExpiresAtAfter(LocalDateTime expiresAt);
 
     List<Story> findAllByExpiresAtBefore(LocalDateTime expiresAt);
-
 }
-

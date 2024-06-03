@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +46,7 @@ public class StoryController {
 
     @Autowired
     StorageService storageService;
+    private static final Logger logger = LoggerFactory.getLogger(StoryController.class);
 
     // Endpoint to get stories for a user
     @GetMapping("/user/{username}")
@@ -146,41 +149,28 @@ public class StoryController {
         }
     }
 
-    // private String saveImage(MultipartFile imageFile) throws IOException {
-    // // Define the directory where you want to save the uploaded images
-    // String uploadDir = "upload-dir/";
-
-    // // Generate a unique filename for the image
-    // // String fileName = System.currentTimeMillis() + "_" +
-    // imageFile.getOriginalFilename();
-
-    // // Create the path where the image will be saved
-    // // Path filePath = Paths.get(uploadDir + fileName);
-    // System.out.println("Received file: " + imageFile.getOriginalFilename());
-    // storageService.store(imageFile);
-    // String filename = imageFile.getOriginalFilename();
-    // String url = "http://localhost:8080/files/" + imageFile;
-    // try {
-    // // Save the image file to the specified path
-    // Files.write(filePath, imageFile.getBytes());
-    // } catch (IOException e) {
-    // e.printStackTrace();
-    // throw new IOException("Failed to save image");
-    // }
-
-    // // Return the URL or file path of the saved image
-    // return filePath.toString(); // This will return the file path, not URL
-    // }
-
-    // Endpoint to delete a specific story by its ID
+    @Transactional
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteStory(@PathVariable Long id) {
-        Optional<Story> storyOptional = storyRepository.findById(id);
-        if (storyOptional.isPresent()) {
-            storyRepository.deleteById(id);
-            return ResponseEntity.ok().body("Story deleted successfully");
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Story not found");
+        try {
+            logger.info("Request received to delete story with ID: " + id);
+            Optional<Story> storyOptional = storyRepository.findById(id);
+            if (storyOptional.isPresent()) {
+                Story story = storyOptional.get();
+                logger.info("Found story in the database: " + story);
+
+                // Delete the story
+                storyRepository.delete(story);
+
+                return ResponseEntity.ok().body("Story deleted successfully");
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Story not found");
+            }
+        } catch (Exception e) {
+            logger.error("Error deleting story with ID: " + id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to delete story: " + e.getMessage());
         }
     }
+
 }
