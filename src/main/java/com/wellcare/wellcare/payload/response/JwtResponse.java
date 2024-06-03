@@ -8,14 +8,17 @@ public class JwtResponse {
     private String name;
     private String email;
     private String role;
+    private String image;
 
-    public JwtResponse(String accessToken, Long id, String username, String name, String email, String role) {
+    public JwtResponse(String accessToken, Long id, String username, String name, String email, String role,
+            String image) {
         this.token = accessToken;
         this.id = id;
         this.username = username;
         this.name = name;
         this.email = email;
         this.role = role;
+        this.image = image;
     }
 
     public JwtResponse(String accessToken, Long id, String username, String name, String email) {
@@ -76,5 +79,13 @@ public class JwtResponse {
 
     public String getRoles() {
         return role;
+    }
+
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
     }
 }

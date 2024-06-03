@@ -134,7 +134,8 @@ public class AuthController {
                     .collect(Collectors.joining(","));
 
             return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(),
-                    userDetails.getUsername(), userDetails.getName(), userDetails.getEmail(), roles));
+                    userDetails.getUsername(), userDetails.getName(), userDetails.getEmail(), roles,
+                    userDetails.getImage()));
 
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.badRequest().body(new MessageResponse("Validation Error"));
