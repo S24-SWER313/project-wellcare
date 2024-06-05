@@ -105,7 +105,7 @@ public class PostController {
             // Use the extracted userId to get the User object
             Optional<User> existingUserOptional = userRepository.findById(userId);
             User user = existingUserOptional.orElseThrow(() -> new UserException("User not found"));
-
+            post.setId(null);
             post.setUser(user); // Set the User for the Post
             post.setCreatedAt(LocalDateTime.now());
 
@@ -211,7 +211,7 @@ public class PostController {
             logger.error("Error updating post", ex);
             throw new PostException("Error updating post: " + ex.getMessage());
         }
-    }    
+    }
 
     @GetMapping("/{userId}")
     public ResponseEntity<PagedModel<EntityModel<Post>>> getPostsByUserId(@PathVariable Long userId,
